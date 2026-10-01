@@ -1,0 +1,30 @@
+# Local planning notes
+plan.md
+
+# Secrets / local env
+.env
+*.local.json
+appsettings.*.local.json
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.trx
+coverage*/
+
+# Node / Angular
+node_modules/
+dist/
+.angular/
+web/.angular/
+
+# Editors / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
