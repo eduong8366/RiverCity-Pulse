@@ -1,26 +1,52 @@
 using System.Net;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
+using Polly;
 using Sac311.Ingestion.ArcGis;
 
 namespace Sac311.Ingestion;
 
 public static class ServiceCollectionExtensions
 {
-    /// <summary>Registers <see cref="ArcGisClient"/> bound to the <c>ArcGis</c> configuration section.</summary>
+    /// <summary>
+    /// Registers <see cref="ArcGisClient"/> bound to the <c>ArcGis</c> configuration section, behind the standard
+    /// resilience handler: per-attempt timeout, retries with exponential backoff and jitter, a circuit breaker and an
+    /// overall timeout. <see cref="ArcGisErrorHandler"/> sits inside it so transient 200-with-error bodies are retried too.
+    /// </summary>
     public static IServiceCollection AddArcGisClient(this IServiceCollection services)
     {
         services.AddOptions<ArcGisOptions>().BindConfiguration(ArcGisOptions.SectionName);
-        services.AddHttpClient<ArcGisClient>((sp, http) =>
+        var client = services.AddHttpClient<ArcGisClient>((sp, http) =>
             {
                 var options = sp.GetRequiredService<IOptions<ArcGisOptions>>().Value;
                 // Trailing slash so "query" resolves to .../FeatureServer/0/query.
                 var url = options.BaseUrl.ToString();
                 http.BaseAddress = new Uri(url.EndsWith('/') ? url : url + "/");
-                http.Timeout = options.Timeout;
+                // The resilience pipeline owns timeouts.
+                http.Timeout = Timeout.InfiniteTimeSpan;
                 http.DefaultRequestHeaders.UserAgent.ParseAdd("rivercity-pulse/1.0");
             })
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AutomaticDecompression = DecompressionMethods.All });
+
+        client.AddStandardResilienceHandler()
+            .Configure((resilience, sp) =>
+            {
+                var options = sp.GetRequiredService<IOptions<ArcGisOptions>>().Value;
+                resilience.AttemptTimeout.Timeout = options.AttemptTimeout;
+                resilience.TotalRequestTimeout.Timeout = options.TotalTimeout;
+                resilience.Retry.MaxRetryAttempts = options.MaxRetries;
+                resilience.Retry.Delay = options.RetryDelay;
+                resilience.Retry.BackoffType = DelayBackoffType.Exponential;
+                resilience.Retry.UseJitter = true;
+                // The breaker's window must be at least twice the attempt timeout.
+                resilience.CircuitBreaker.SamplingDuration = options.AttemptTimeout * 2 > TimeSpan.FromSeconds(30)
+                    ? options.AttemptTimeout * 2
+                    : TimeSpan.FromSeconds(30);
+            });
+
+        // Added after the resilience handler, so it runs inside each attempt.
+        client.AddHttpMessageHandler(() => new ArcGisErrorHandler());
         return services;
     }
 }
