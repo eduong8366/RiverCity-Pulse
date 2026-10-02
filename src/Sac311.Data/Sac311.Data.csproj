@@ -1,7 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="dbup-sqlserver" />
+    <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Sac311.Domain\Sac311.Domain.csproj" />
+  </ItemGroup>
+
+  <!-- SQL lives in /db at the repo root; it is embedded so the worker and tests carry their own scripts.
+       The logical name ("migrations.0001_x.sql") is what DbUp sorts on and records in its journal. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\db\migrations\*.sql" LogicalName="migrations.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\db\programmable\*.sql" LogicalName="programmable.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="..\..\db\seed\*.sql" LogicalName="seed.%(Filename)%(Extension)" />
   </ItemGroup>
 
 </Project>
