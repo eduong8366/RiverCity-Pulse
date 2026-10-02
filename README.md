@@ -12,14 +12,15 @@ A data pipeline and dashboard for the City of Sacramento's public 311 service re
 |---|---|
 | `src/` | `Sac311.Domain`, `Sac311.Data`, `Sac311.Ingestion`, `Sac311.Worker`, `Sac311.Api` |
 | `tests/` | Domain, integration and API test projects |
-| `scripts/` | `create-db.ps1` (local database), `verify-source.ps1` (profiles the live feed) |
+| `db/` | SQL run by `worker migrate`: `migrations/` (one-time, journaled), `programmable/` (procs, always run), `seed/` (reference data, idempotent) |
+| `scripts/` | `verify-source.ps1` (profiles the live feed; becomes a worker verb in M1) |
 | `docs/` | [`source-profile.md`](docs/source-profile.md): measured facts about the source data and its terms of use |
 | `data/geo/` | Sacramento neighborhood boundaries (GeoJSON, WGS84) |
 
 ## Local prerequisites
 
 - .NET SDK 10.0.401 (pinned in `global.json`)
-- SQL Server Express at `localhost\SQLEXPRESS` with Windows authentication. Run `./scripts/create-db.ps1` once. To use a different server, set `ConnectionStrings__Sac311`.
+- SQL Server Express at `localhost\SQLEXPRESS` with Windows authentication. Create or update the database with `dotnet run --project src/Sac311.Worker -- migrate` (it creates `Sac311` if missing and is safe to rerun). To use a different server, set `ConnectionStrings__Sac311`.
 
 ## Data source and terms
 
