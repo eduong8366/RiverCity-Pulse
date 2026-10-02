@@ -1,0 +1,33 @@
+{
+  "name": "sentinel-date",
+  "description": "SYNTHETIC. The live feed has no 1899-12-30 sentinel dates (0 in docs/source-profile.md). This is the first typical.json row with DateCreated and DateClosed set to the field default 1899-12-30 00:00 UTC.",
+  "synthetic": true,
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 2049272,
+        "ReferenceNumber": "240101-2172157",
+        "CategoryLevel1": "Code Enforcement",
+        "CategoryLevel2": "General",
+        "CategoryName": "Code Enforcement General",
+        "CouncilDistrictNumber": "District 5",
+        "SourceLevel1": "Web",
+        "Neighborhood": "Airport",
+        "DateCreated": -2209161600000,
+        "DateUpdated": 1704925800000,
+        "DateClosed": -2209161600000,
+        "CrossStreet": "LA CAMPANA WAY",
+        "GlobalID": "ff64ac47-56c6-4fc6-952c-8131024b2d46",
+        "ZIP": "95822",
+        "SFTicketID": "5005G00001pC9TtQAK",
+        "Address": "1924 34TH AVE, SACRAMENTO, 95822",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -121.49543309783193,
+        "y": 38.521712206751893
+      }
+    }
+  ]
+}

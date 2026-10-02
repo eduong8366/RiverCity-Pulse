@@ -19,4 +19,8 @@
     <ProjectReference Include="..\..\src\Sac311.Domain\Sac311.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="Fixtures\**\*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

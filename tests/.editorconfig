@@ -1,0 +1,3 @@
+[*.cs]
+# Test names read as sentences (Real_rows_are_kept); underscores are the convention here.
+dotnet_diagnostic.CA1707.severity = none
