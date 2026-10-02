@@ -1,6 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Http" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Sac311.Domain\Sac311.Domain.csproj" />
     <ProjectReference Include="..\Sac311.Data\Sac311.Data.csproj" />
   </ItemGroup>
