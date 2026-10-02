@@ -9,6 +9,7 @@ var builder = Host.CreateApplicationBuilder(verbArgs);
 builder.Services.AddArcGisClient();
 builder.Services.AddTransient<IVerb, MigrateVerb>();
 builder.Services.AddTransient<IVerb, CaptureFixtureVerb>();
+builder.Services.AddTransient<IVerb, VerifySourceVerb>();
 
 using var host = builder.Build();
 
