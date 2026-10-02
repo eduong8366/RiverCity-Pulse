@@ -1,0 +1,59 @@
+{
+  "name": "source-blank",
+  "description": "SourceLevel1 is \u0027\u0027, so it can\u0027t be mapped.",
+  "synthetic": false,
+  "capturedUtc": "2026-10-02T21:59:12Z",
+  "layer": "https://services5.arcgis.com/54falWtcpty3V47Z/arcgis/rest/services/SalesForce311_View/FeatureServer/0",
+  "queries": [
+    {
+      "where": "SourceLevel1 = \u0027\u0027",
+      "count": 2
+    }
+  ],
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 2132849,
+        "ReferenceNumber": "240224-2268175",
+        "CategoryLevel1": "",
+        "CategoryLevel2": "",
+        "CategoryName": " ",
+        "CouncilDistrictNumber": "Non City",
+        "SourceLevel1": "",
+        "Neighborhood": null,
+        "DateCreated": 1708735140000,
+        "DateUpdated": 1708735140000,
+        "DateClosed": null,
+        "CrossStreet": null,
+        "GlobalID": "e4f33ab5-a289-4b9e-897d-63328c66af0d",
+        "ZIP": null,
+        "SFTicketID": "5005G00001rOgdMQAS",
+        "Address": "",
+        "Data_Source": "311",
+        "PublicStatus": "NEW"
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2132918,
+        "ReferenceNumber": "240224-2268256",
+        "CategoryLevel1": "",
+        "CategoryLevel2": "",
+        "CategoryName": " ",
+        "CouncilDistrictNumber": "Non City",
+        "SourceLevel1": "",
+        "Neighborhood": null,
+        "DateCreated": 1708737960000,
+        "DateUpdated": 1708737960000,
+        "DateClosed": null,
+        "CrossStreet": null,
+        "GlobalID": "ccfaa5bc-68cb-418f-99d2-60ebb6f3ce1c",
+        "ZIP": null,
+        "SFTicketID": "5005G00001rOiIsQAK",
+        "Address": "",
+        "Data_Source": "311",
+        "PublicStatus": "NEW"
+      }
+    }
+  ]
+}

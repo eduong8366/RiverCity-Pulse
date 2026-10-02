@@ -1,0 +1,153 @@
+{
+  "name": "typical",
+  "description": "Ordinary rows in each status, for happy-path tests.",
+  "synthetic": false,
+  "capturedUtc": "2026-10-02T21:59:13Z",
+  "layer": "https://services5.arcgis.com/54falWtcpty3V47Z/arcgis/rest/services/SalesForce311_View/FeatureServer/0",
+  "queries": [
+    {
+      "where": "PublicStatus = \u0027CLOSED\u0027 AND DateClosed \u003E= DateCreated AND Address \u003C\u003E \u0027\u0027 AND Neighborhood IS NOT NULL",
+      "count": 2
+    },
+    {
+      "where": "PublicStatus = \u0027NEW\u0027",
+      "count": 1
+    },
+    {
+      "where": "PublicStatus = \u0027IN PROGRESS\u0027",
+      "count": 1
+    },
+    {
+      "where": "PublicStatus = \u0027CANCELLED\u0027",
+      "count": 1
+    }
+  ],
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 2049272,
+        "ReferenceNumber": "240101-2172157",
+        "CategoryLevel1": "Code Enforcement",
+        "CategoryLevel2": "General",
+        "CategoryName": "Code Enforcement General",
+        "CouncilDistrictNumber": "District 5",
+        "SourceLevel1": "Web",
+        "Neighborhood": "Airport",
+        "DateCreated": 1704067320000,
+        "DateUpdated": 1704925800000,
+        "DateClosed": 1704925800000,
+        "CrossStreet": "LA CAMPANA WAY",
+        "GlobalID": "ff64ac47-56c6-4fc6-952c-8131024b2d46",
+        "ZIP": "95822",
+        "SFTicketID": "5005G00001pC9TtQAK",
+        "Address": "1924 34TH AVE, SACRAMENTO, 95822",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -121.49543309783193,
+        "y": 38.521712206751893
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2049274,
+        "ReferenceNumber": "240101-2172159",
+        "CategoryLevel1": "Animal Control",
+        "CategoryLevel2": "Dead",
+        "CategoryName": "Animal Control Dead",
+        "CouncilDistrictNumber": "District 3",
+        "SourceLevel1": "Phone",
+        "Neighborhood": "South Natomas",
+        "DateCreated": 1704067560000,
+        "DateUpdated": 1707076920000,
+        "DateClosed": 1707076920000,
+        "CrossStreet": "MOSSY BANK DR",
+        "GlobalID": "d491ce5e-db66-4c78-8f3c-b9f475ce40e5",
+        "ZIP": "95833",
+        "SFTicketID": "5005G00001pBuMbQAK",
+        "Address": "WATERWHEEL DR \u0026 TRUXEL RD, SACRAMENTO, 95833",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -121.49787697901314,
+        "y": 38.610925694510371
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2049284,
+        "ReferenceNumber": "240101-2172169",
+        "CategoryLevel1": "Parking",
+        "CategoryLevel2": "Limited Enforcement",
+        "CategoryName": "Parking Limited Enforcement",
+        "CouncilDistrictNumber": "District 4",
+        "SourceLevel1": "Phone",
+        "Neighborhood": "Old Sacramento",
+        "DateCreated": 1704068700000,
+        "DateUpdated": 1704069060000,
+        "DateClosed": null,
+        "CrossStreet": "K ST",
+        "GlobalID": "73b82dcc-577f-471d-9549-f1ebf5724467",
+        "ZIP": "95814",
+        "SFTicketID": "5005G00001pC9UZQA0",
+        "Address": "1112 2ND ST, SACRAMENTO 95814",
+        "Data_Source": "311",
+        "PublicStatus": "NEW"
+      },
+      "geometry": {
+        "x": -121.50522691310293,
+        "y": 38.581648434398382
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2049349,
+        "ReferenceNumber": "240101-2172240",
+        "CategoryLevel1": "Animal Control",
+        "CategoryLevel2": "Stray Animal",
+        "CategoryName": "Animal Control Stray Animal",
+        "CouncilDistrictNumber": "District 2",
+        "SourceLevel1": "Phone",
+        "Neighborhood": "Cal Expo",
+        "DateCreated": 1704074760000,
+        "DateUpdated": 1704075060000,
+        "DateClosed": null,
+        "CrossStreet": "HERITAGE LN",
+        "GlobalID": "4114394c-d274-425c-9752-4e2911903de0",
+        "ZIP": "95815",
+        "SFTicketID": "5005G00001pCAEfQAO",
+        "Address": "1600 EXPOSITION BLVD, SACRAMENTO 95815",
+        "Data_Source": "311",
+        "PublicStatus": "IN PROGRESS"
+      },
+      "geometry": {
+        "x": -121.43481673328586,
+        "y": 38.593336552380933
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 3191174,
+        "ReferenceNumber": "251030-3369677",
+        "CategoryLevel1": "Review",
+        "CategoryLevel2": "Email Review",
+        "CategoryName": "Review Email Review",
+        "CouncilDistrictNumber": "Non City",
+        "SourceLevel1": "Email",
+        "Neighborhood": null,
+        "DateCreated": 1761866460000,
+        "DateUpdated": 1761870180000,
+        "DateClosed": null,
+        "CrossStreet": null,
+        "GlobalID": "247e4820-3ee2-4dd5-b60d-64c651b698ab",
+        "ZIP": null,
+        "SFTicketID": "500UW00000q1ahrYAA",
+        "Address": "",
+        "Data_Source": "311",
+        "PublicStatus": "CANCELLED"
+      }
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "name": "closed-before-created",
+  "description": "DateClosed is earlier than DateCreated.",
+  "synthetic": false,
+  "capturedUtc": "2026-10-02T21:58:56Z",
+  "layer": "https://services5.arcgis.com/54falWtcpty3V47Z/arcgis/rest/services/SalesForce311_View/FeatureServer/0",
+  "queries": [
+    {
+      "where": "DateClosed \u003C DateCreated",
+      "count": 3
+    }
+  ],
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 2050432,
+        "ReferenceNumber": "240102-2173397",
+        "CategoryLevel1": "Sewer",
+        "CategoryLevel2": "Determine Responsibility",
+        "CategoryName": "Sewer Determine Responsibility",
+        "CouncilDistrictNumber": "District 7",
+        "SourceLevel1": "Web",
+        "Neighborhood": "Upper Land Park",
+        "DateCreated": 1704205080000,
+        "DateUpdated": 1704205140000,
+        "DateClosed": 1704180840000,
+        "CrossStreet": "10TH AVE",
+        "GlobalID": "a2e134cf-90ab-4a5a-baad-f0ec60e27f2f",
+        "ZIP": "95818",
+        "SFTicketID": "5005G00001pCMu8QAG",
+        "Address": "920 9TH AVE, SACRAMENTO 95818",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -121.50775929841566,
+        "y": 38.548396170450161
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2050552,
+        "ReferenceNumber": "240102-2173531",
+        "CategoryLevel1": "Sewer",
+        "CategoryLevel2": "Notify Supervisor",
+        "CategoryName": "Sewer Notify Supervisor",
+        "CouncilDistrictNumber": "District 7",
+        "SourceLevel1": "Phone",
+        "Neighborhood": "South Land Park",
+        "DateCreated": 1704212400000,
+        "DateUpdated": 1704213060000,
+        "DateClosed": 1704190980000,
+        "CrossStreet": "CRESTWOOD WAY",
+        "GlobalID": "4aba81f1-06aa-4ce1-a336-4ee52a06fac7",
+        "ZIP": "95822",
+        "SFTicketID": "5005G00001pCTHvQAO",
+        "Address": "5130 PLEASANT DR, SACRAMENTO 95822",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -121.50906754962486,
+        "y": 38.528577456849035
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2050702,
+        "ReferenceNumber": "240102-2173699",
+        "CategoryLevel1": "Animal Control",
+        "CategoryLevel2": "Stray Animal",
+        "CategoryName": "Animal Control Stray Animal",
+        "CouncilDistrictNumber": "District 6",
+        "SourceLevel1": "Phone",
+        "Neighborhood": "Morrison Creek",
+        "DateCreated": 1704216540000,
+        "DateUpdated": 1704221100000,
+        "DateClosed": 1704192300000,
+        "CrossStreet": "YOUNGER CREEK DR",
+        "GlobalID": "1a7f9b7e-f7ad-4dc7-9bfa-bbbca7840c30",
+        "ZIP": "95828",
+        "SFTicketID": "5005G00001pCXqlQAG",
+        "Address": "8788 ELDER CREEK RD, SACRAMENTO 95828",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -121.3769748394825,
+        "y": 38.509807918464141
+      }
+    }
+  ]
+}

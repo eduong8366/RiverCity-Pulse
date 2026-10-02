@@ -1,0 +1,81 @@
+{
+  "name": "closed-missing-date",
+  "description": "PublicStatus is CLOSED but DateClosed is null.",
+  "synthetic": false,
+  "capturedUtc": "2026-10-02T21:58:56Z",
+  "layer": "https://services5.arcgis.com/54falWtcpty3V47Z/arcgis/rest/services/SalesForce311_View/FeatureServer/0",
+  "queries": [
+    {
+      "where": "PublicStatus = \u0027CLOSED\u0027 AND DateClosed IS NULL",
+      "count": 3
+    }
+  ],
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 2049275,
+        "ReferenceNumber": "240101-2172160",
+        "CategoryLevel1": "Animal Control",
+        "CategoryLevel2": "Found Animal",
+        "CategoryName": "Animal Control Found Animal",
+        "CouncilDistrictNumber": "Non City",
+        "SourceLevel1": "Phone",
+        "Neighborhood": null,
+        "DateCreated": 1704067680000,
+        "DateUpdated": 1704216120000,
+        "DateClosed": null,
+        "CrossStreet": null,
+        "GlobalID": "e847fb1d-febe-4ee6-99f0-c139c22dab93",
+        "ZIP": null,
+        "SFTicketID": "5005G00001pBzrxQAC",
+        "Address": "",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2049310,
+        "ReferenceNumber": "240101-2172196",
+        "CategoryLevel1": "Animal Control",
+        "CategoryLevel2": "AC Customer Service",
+        "CategoryName": "Animal Control AC Customer Service",
+        "CouncilDistrictNumber": "Non City",
+        "SourceLevel1": "Phone",
+        "Neighborhood": null,
+        "DateCreated": 1704069900000,
+        "DateUpdated": 1704212760000,
+        "DateClosed": null,
+        "CrossStreet": null,
+        "GlobalID": "b0fffbb2-28f9-4255-b031-02019281efcf",
+        "ZIP": null,
+        "SFTicketID": "5005G00001pC9QZQA0",
+        "Address": "",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2049327,
+        "ReferenceNumber": "240101-2172214",
+        "CategoryLevel1": "Animal Control",
+        "CategoryLevel2": "AC Customer Service",
+        "CategoryName": "Animal Control AC Customer Service",
+        "CouncilDistrictNumber": "Non City",
+        "SourceLevel1": "Phone",
+        "Neighborhood": null,
+        "DateCreated": 1704071040000,
+        "DateUpdated": 1704212580000,
+        "DateClosed": null,
+        "CrossStreet": null,
+        "GlobalID": "b81c19b4-7f45-4c1b-92de-fb8edcd6228c",
+        "ZIP": null,
+        "SFTicketID": "5005G00001pC9ocQAC",
+        "Address": "",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      }
+    }
+  ]
+}

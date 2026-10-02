@@ -1,0 +1,81 @@
+{
+  "name": "address-empty",
+  "description": "Address is \u0027\u0027 (ArcGIS counts it as non-null).",
+  "synthetic": false,
+  "capturedUtc": "2026-10-02T21:58:55Z",
+  "layer": "https://services5.arcgis.com/54falWtcpty3V47Z/arcgis/rest/services/SalesForce311_View/FeatureServer/0",
+  "queries": [
+    {
+      "where": "Address = \u0027\u0027",
+      "count": 3
+    }
+  ],
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 2049271,
+        "ReferenceNumber": "240101-2172156",
+        "CategoryLevel1": "Other",
+        "CategoryLevel2": "Information",
+        "CategoryName": "Other Information",
+        "CouncilDistrictNumber": "Non City",
+        "SourceLevel1": "Phone",
+        "Neighborhood": null,
+        "DateCreated": 1704067320000,
+        "DateUpdated": 1704067320000,
+        "DateClosed": 1704067320000,
+        "CrossStreet": null,
+        "GlobalID": "aef81686-b718-4ae7-b2b8-9530a0407ed8",
+        "ZIP": null,
+        "SFTicketID": "5005G00001pC9LlQAK",
+        "Address": "",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2049273,
+        "ReferenceNumber": "240101-2172158",
+        "CategoryLevel1": "Other",
+        "CategoryLevel2": "Information",
+        "CategoryName": "Other Information",
+        "CouncilDistrictNumber": "Non City",
+        "SourceLevel1": "Phone",
+        "Neighborhood": null,
+        "DateCreated": 1704067440000,
+        "DateUpdated": 1704067440000,
+        "DateClosed": 1704067440000,
+        "CrossStreet": null,
+        "GlobalID": "ccaa1082-68cd-4b44-bb03-8523d2a6a860",
+        "ZIP": null,
+        "SFTicketID": "5005G00001pC9U8QAK",
+        "Address": "",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2049275,
+        "ReferenceNumber": "240101-2172160",
+        "CategoryLevel1": "Animal Control",
+        "CategoryLevel2": "Found Animal",
+        "CategoryName": "Animal Control Found Animal",
+        "CouncilDistrictNumber": "Non City",
+        "SourceLevel1": "Phone",
+        "Neighborhood": null,
+        "DateCreated": 1704067680000,
+        "DateUpdated": 1704216120000,
+        "DateClosed": null,
+        "CrossStreet": null,
+        "GlobalID": "e847fb1d-febe-4ee6-99f0-c139c22dab93",
+        "ZIP": null,
+        "SFTicketID": "5005G00001pBzrxQAC",
+        "Address": "",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      }
+    }
+  ]
+}

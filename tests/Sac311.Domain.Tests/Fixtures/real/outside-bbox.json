@@ -1,0 +1,103 @@
+{
+  "name": "outside-bbox",
+  "description": "Points outside the Sacramento bounding box (one query per side).",
+  "synthetic": false,
+  "capturedUtc": "2026-10-02T22:00:05Z",
+  "layer": "https://services5.arcgis.com/54falWtcpty3V47Z/arcgis/rest/services/SalesForce311_View/FeatureServer/0",
+  "queries": [
+    {
+      "where": "1=1",
+      "count": 1,
+      "envelope": [
+        -180,
+        -90,
+        -122.000001,
+        90
+      ]
+    },
+    {
+      "where": "1=1",
+      "count": 1,
+      "envelope": [
+        -120.899999,
+        -90,
+        180,
+        90
+      ]
+    },
+    {
+      "where": "1=1",
+      "count": 1,
+      "envelope": [
+        -122,
+        -90,
+        -120.9,
+        38.199999
+      ]
+    },
+    {
+      "where": "1=1",
+      "count": 1,
+      "envelope": [
+        -122,
+        39.000001,
+        -120.9,
+        90
+      ]
+    }
+  ],
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 2701633,
+        "ReferenceNumber": "250211-2880548",
+        "CategoryLevel1": "Other",
+        "CategoryLevel2": "Non City",
+        "CategoryName": "Other Non City",
+        "CouncilDistrictNumber": "Non City",
+        "SourceLevel1": "Phone",
+        "Neighborhood": null,
+        "DateCreated": 1739312580000,
+        "DateUpdated": 1739313000000,
+        "DateClosed": 1739313000000,
+        "CrossStreet": null,
+        "GlobalID": "f9d5d865-1432-40c1-9673-b42be2555686",
+        "ZIP": null,
+        "SFTicketID": "500UW00000TVQDhYAP",
+        "Address": "219 apex loop, folsom, ca",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -119.75126,
+        "y": 37.250219999999985
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2060316,
+        "ReferenceNumber": "240109-2184569",
+        "CategoryLevel1": "Homeless Camp",
+        "CategoryLevel2": "Homeless Camp-Trash",
+        "CategoryName": "Homeless Camp Homeless Camp-Trash",
+        "CouncilDistrictNumber": "Non City",
+        "SourceLevel1": "Phone",
+        "Neighborhood": null,
+        "DateCreated": 1704815280000,
+        "DateUpdated": 1704815340000,
+        "DateClosed": 1704815340000,
+        "CrossStreet": "3RD ST",
+        "GlobalID": "904fbc53-db89-4865-8b1c-e4936327992c",
+        "ZIP": "95641",
+        "SFTicketID": "5005G00001pFilBQAS",
+        "Address": "300 C ST, ISLETON, 95641",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -121.60999794646186,
+        "y": 38.161103936742556
+      }
+    }
+  ]
+}

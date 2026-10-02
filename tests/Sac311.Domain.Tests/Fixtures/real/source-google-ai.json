@@ -1,0 +1,97 @@
+{
+  "name": "source-google-ai",
+  "description": "Both spellings of the Google AI channel.",
+  "synthetic": false,
+  "capturedUtc": "2026-10-02T21:58:56Z",
+  "layer": "https://services5.arcgis.com/54falWtcpty3V47Z/arcgis/rest/services/SalesForce311_View/FeatureServer/0",
+  "queries": [
+    {
+      "where": "SourceLevel1 = \u0027GoogleAI\u0027",
+      "count": 2
+    },
+    {
+      "where": "SourceLevel1 = \u0027Google AI\u0027",
+      "count": 1
+    }
+  ],
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 2049395,
+        "ReferenceNumber": "240101-2172290",
+        "CategoryLevel1": "Animal Control",
+        "CategoryLevel2": "Dead",
+        "CategoryName": "Animal Control Dead",
+        "CouncilDistrictNumber": "District 6",
+        "SourceLevel1": "GoogleAI",
+        "Neighborhood": "Fruitridge Manor",
+        "DateCreated": 1704083640000,
+        "DateUpdated": 1704327480000,
+        "DateClosed": 1704327480000,
+        "CrossStreet": "LAWRENCE DR",
+        "GlobalID": "f0b65424-25ff-46ff-ae45-73074e198feb",
+        "ZIP": "95824",
+        "SFTicketID": "5005G00001pCAaUQAW",
+        "Address": "STOCKTON BLVD \u0026 FRUITRIDGE RD, SACRAMENTO, 95820",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -121.44260338757398,
+        "y": 38.524979400870691
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2049419,
+        "ReferenceNumber": "240101-2172314",
+        "CategoryLevel1": "Animal Control",
+        "CategoryLevel2": "Dead",
+        "CategoryName": "Animal Control Dead",
+        "CouncilDistrictNumber": "District 2",
+        "SourceLevel1": "GoogleAI",
+        "Neighborhood": "Hagginwood",
+        "DateCreated": 1704087900000,
+        "DateUpdated": 1706649300000,
+        "DateClosed": 1706649300000,
+        "CrossStreet": "SOUTH AVE",
+        "GlobalID": "c346a5e7-33de-49bd-9d5c-66a234d3accc",
+        "ZIP": "95838",
+        "SFTicketID": "5005G00001pCAE0QAO",
+        "Address": "RIO LINDA BLVD \u0026 SOUTH AVE, SACRAMENTO, 95838",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -121.44609226644643,
+        "y": 38.6330672029981
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2221507,
+        "ReferenceNumber": "240419-2372139",
+        "CategoryLevel1": "Parking",
+        "CategoryLevel2": "Enforcement",
+        "CategoryName": "Parking Enforcement",
+        "CouncilDistrictNumber": "District 6",
+        "SourceLevel1": "Google AI",
+        "Neighborhood": "Elmhurst",
+        "DateCreated": 1713539640000,
+        "DateUpdated": 1713555840000,
+        "DateClosed": null,
+        "CrossStreet": "STOCKTON BLVD",
+        "GlobalID": "197591ef-08eb-40c9-93c7-e89f747ba857",
+        "ZIP": "95817",
+        "SFTicketID": "5005G00001ttHl1QAE",
+        "Address": "3830 U ST, SACRAMENTO 95817",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -121.45996161768137,
+        "y": 38.557770928036042
+      }
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+{
+  "name": "homeless-camp",
+  "description": "Homeless Camp - Primary, which merges into Homeless Camp.",
+  "synthetic": false,
+  "capturedUtc": "2026-10-02T21:58:57Z",
+  "layer": "https://services5.arcgis.com/54falWtcpty3V47Z/arcgis/rest/services/SalesForce311_View/FeatureServer/0",
+  "queries": [
+    {
+      "where": "CategoryLevel1 = \u0027Homeless Camp - Primary\u0027",
+      "count": 2
+    },
+    {
+      "where": "CategoryLevel1 = \u0027Homeless Camp\u0027",
+      "count": 1
+    }
+  ],
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 2988471,
+        "ReferenceNumber": "250726-3171368",
+        "CategoryLevel1": "Homeless Camp - Primary",
+        "CategoryLevel2": "Homeless Camp-Trash",
+        "CategoryName": "Homeless Camp - Primary Homeless Camp-Trash",
+        "CouncilDistrictNumber": "District 4",
+        "SourceLevel1": "Web",
+        "Neighborhood": "Downtown",
+        "DateCreated": 1753513440000,
+        "DateUpdated": 1753513440000,
+        "DateClosed": null,
+        "CrossStreet": "9TH ST",
+        "GlobalID": "9aa4b6c4-866c-427e-8a09-0797d37cf28b",
+        "ZIP": "95814",
+        "SFTicketID": "500UW00000gyrdzYAA",
+        "Address": "914 I ST, SACRAMENTO, 95814",
+        "Data_Source": "311",
+        "PublicStatus": "NEW"
+      },
+      "geometry": {
+        "x": -121.4941102503346,
+        "y": 38.581584276037745
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2988472,
+        "ReferenceNumber": "250726-3171369",
+        "CategoryLevel1": "Homeless Camp - Primary",
+        "CategoryLevel2": "Concern",
+        "CategoryName": "Homeless Camp - Primary Concern",
+        "CouncilDistrictNumber": "District 4",
+        "SourceLevel1": "Web",
+        "Neighborhood": "Downtown",
+        "DateCreated": 1753513440000,
+        "DateUpdated": 1753715880000,
+        "DateClosed": null,
+        "CrossStreet": "9TH ST",
+        "GlobalID": "10a7fe06-04a6-4d1c-8635-4286ee85904d",
+        "ZIP": "95814",
+        "SFTicketID": "500UW00000gyre0YAA",
+        "Address": "914 I ST, SACRAMENTO, 95814",
+        "Data_Source": "311",
+        "PublicStatus": "IN PROGRESS"
+      },
+      "geometry": {
+        "x": -121.4941102503346,
+        "y": 38.581584276037745
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2049282,
+        "ReferenceNumber": "240101-2172167",
+        "CategoryLevel1": "Homeless Camp",
+        "CategoryLevel2": "Concern",
+        "CategoryName": "Homeless Camp Concern",
+        "CouncilDistrictNumber": "District 4",
+        "SourceLevel1": "Phone",
+        "Neighborhood": "Marshall School",
+        "DateCreated": 1704068460000,
+        "DateUpdated": 1704241860000,
+        "DateClosed": 1704241860000,
+        "CrossStreet": "28TH ST",
+        "GlobalID": "95947f00-876f-405a-8b95-33036b14da63",
+        "ZIP": "95816",
+        "SFTicketID": "5005G00001pC7WyQAK",
+        "Address": "E ST \u0026 29TH ST, SACRAMENTO, 95816",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -121.46551044671659,
+        "y": 38.578950680684379
+      }
+    }
+  ]
+}

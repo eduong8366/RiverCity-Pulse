@@ -1,0 +1,97 @@
+{
+  "name": "neighborhood-slashes",
+  "description": "Neighborhood names with slashes, with and without spaces.",
+  "synthetic": false,
+  "capturedUtc": "2026-10-02T21:58:57Z",
+  "layer": "https://services5.arcgis.com/54falWtcpty3V47Z/arcgis/rest/services/SalesForce311_View/FeatureServer/0",
+  "queries": [
+    {
+      "where": "Neighborhood = \u0027College/Glen\u0027",
+      "count": 2
+    },
+    {
+      "where": "Neighborhood = \u0027Midtown / Winn Park / Capital Avenue\u0027",
+      "count": 1
+    }
+  ],
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 2049364,
+        "ReferenceNumber": "240101-2172258",
+        "CategoryLevel1": "Streets",
+        "CategoryLevel2": "Relamp",
+        "CategoryName": "Streets Relamp",
+        "CouncilDistrictNumber": "District 6",
+        "SourceLevel1": "Phone",
+        "Neighborhood": "College/Glen",
+        "DateCreated": 1704077040000,
+        "DateUpdated": 1726075560000,
+        "DateClosed": 1721689260000,
+        "CrossStreet": "BAMBOO TREE MHP",
+        "GlobalID": "8644a94d-11b2-4b89-884d-676eb97ff52b",
+        "ZIP": "95826",
+        "SFTicketID": "5005G00001pCAUoQAO",
+        "Address": "FOLSOM BLVD \u0026 WISSEMANN DR, SACRAMENTO, 95826",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -121.3815880151828,
+        "y": 38.550201898284229
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2049371,
+        "ReferenceNumber": "240101-2172266",
+        "CategoryLevel1": "Homeless Camp",
+        "CategoryLevel2": "Concern",
+        "CategoryName": "Homeless Camp Concern",
+        "CouncilDistrictNumber": "District 6",
+        "SourceLevel1": "Web",
+        "Neighborhood": "College/Glen",
+        "DateCreated": 1704078360000,
+        "DateUpdated": 1704301200000,
+        "DateClosed": 1704301200000,
+        "CrossStreet": "RAMP",
+        "GlobalID": "f0d6f7f4-a207-452a-b6d9-9d3a1bd86b2c",
+        "ZIP": "95826",
+        "SFTicketID": "5005G00001pCA60QAG",
+        "Address": "HOWE AVE \u0026 LA RIVIERA DR, SACRAMENTO, 95826",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -121.40944871375925,
+        "y": 38.557683214381179
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2049361,
+        "ReferenceNumber": "240101-2172255",
+        "CategoryLevel1": "Water",
+        "CategoryLevel2": "Water Use Complaint",
+        "CategoryName": "Water Water Use Complaint",
+        "CouncilDistrictNumber": "District 4",
+        "SourceLevel1": "Web",
+        "Neighborhood": "Midtown / Winn Park / Capital Avenue",
+        "DateCreated": 1704075840000,
+        "DateUpdated": 1704076260000,
+        "DateClosed": null,
+        "CrossStreet": "19TH ST",
+        "GlobalID": "b1cf963e-a6a6-4dc3-869a-60b022ac7ebc",
+        "ZIP": "95811",
+        "SFTicketID": "5005G00001pCATgQAO",
+        "Address": "1922 O ST, SACRAMENTO 95811",
+        "Data_Source": "311",
+        "PublicStatus": "IN PROGRESS"
+      },
+      "geometry": {
+        "x": -121.48266771233236,
+        "y": 38.571016876918705
+      }
+    }
+  ]
+}

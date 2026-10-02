@@ -1,0 +1,167 @@
+{
+  "name": "address-junk",
+  "description": "Address is a placeholder (N/A, TBD, Ok, Zoom) or 1-2 characters.",
+  "synthetic": false,
+  "capturedUtc": "2026-10-02T22:00:17Z",
+  "layer": "https://services5.arcgis.com/54falWtcpty3V47Z/arcgis/rest/services/SalesForce311_View/FeatureServer/0",
+  "queries": [
+    {
+      "where": "Address = \u0027N/A\u0027",
+      "count": 1
+    },
+    {
+      "where": "Address = \u0027TBD\u0027",
+      "count": 1
+    },
+    {
+      "where": "UPPER(Address) = \u0027OK\u0027",
+      "count": 1
+    },
+    {
+      "where": "UPPER(Address) = \u0027ZOOM\u0027",
+      "count": 1
+    },
+    {
+      "where": "CHAR_LENGTH(Address) BETWEEN 1 AND 2 AND UPPER(Address) \u003C\u003E \u0027OK\u0027",
+      "count": 2
+    }
+  ],
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 2449576,
+        "ReferenceNumber": "240815-2596730",
+        "CategoryLevel1": "Web Form",
+        "CategoryLevel2": "Mayor Form",
+        "CategoryName": "Web Form Mayor Form",
+        "CouncilDistrictNumber": "Non City",
+        "SourceLevel1": "Mayor_Form_City_Web",
+        "Neighborhood": null,
+        "DateCreated": 1723745280000,
+        "DateUpdated": 1724972280000,
+        "DateClosed": 1724972280000,
+        "CrossStreet": null,
+        "GlobalID": "7fa24ac4-1ba7-4a59-96cd-9eec7aea7b17",
+        "ZIP": null,
+        "SFTicketID": "500UW00000F7HumYAF",
+        "Address": "N/A",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2063088,
+        "ReferenceNumber": "240110-2187650",
+        "CategoryLevel1": "Web Form",
+        "CategoryLevel2": "Mayor Form",
+        "CategoryName": "Web Form Mayor Form",
+        "CouncilDistrictNumber": "Non City",
+        "SourceLevel1": "Mayor_Form_EngageSac",
+        "Neighborhood": null,
+        "DateCreated": 1704929160000,
+        "DateUpdated": 1711480620000,
+        "DateClosed": 1711480620000,
+        "CrossStreet": null,
+        "GlobalID": "3d4d2b68-f344-423b-8d22-23d8baa299a7",
+        "ZIP": null,
+        "SFTicketID": "5005G00001pbhumQAA",
+        "Address": "TBD",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2537420,
+        "ReferenceNumber": "241021-2712617",
+        "CategoryLevel1": "Web Form",
+        "CategoryLevel2": "Mayor Form",
+        "CategoryName": "Web Form Mayor Form",
+        "CouncilDistrictNumber": "Non City",
+        "SourceLevel1": "Mayor_Form_EngageSac",
+        "Neighborhood": null,
+        "DateCreated": 1729538340000,
+        "DateUpdated": 1729542120000,
+        "DateClosed": 1729542120000,
+        "CrossStreet": null,
+        "GlobalID": "28b1669c-c4f2-4187-8604-48674b0e9670",
+        "ZIP": null,
+        "SFTicketID": "500UW00000L2J0vYAF",
+        "Address": "Ok",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2349004,
+        "ReferenceNumber": "240702-2512076",
+        "CategoryLevel1": "Web Form",
+        "CategoryLevel2": "Mayor Form",
+        "CategoryName": "Web Form Mayor Form",
+        "CouncilDistrictNumber": "Non City",
+        "SourceLevel1": "Mayor_Form_EngageSac",
+        "Neighborhood": null,
+        "DateCreated": 1719964320000,
+        "DateUpdated": 1720027020000,
+        "DateClosed": 1720027020000,
+        "CrossStreet": null,
+        "GlobalID": "1dbb2ec2-f1f1-4439-9d3f-6f9e2a8bc34a",
+        "ZIP": null,
+        "SFTicketID": "5005G00001vaDHQQA2",
+        "Address": "Zoom",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2724589,
+        "ReferenceNumber": "250226-2904589",
+        "CategoryLevel1": "Web Form",
+        "CategoryLevel2": "Mayor Form",
+        "CategoryName": "Web Form Mayor Form",
+        "CouncilDistrictNumber": "Non City",
+        "SourceLevel1": "Mayor_Form_City_Web",
+        "Neighborhood": null,
+        "DateCreated": 1740606720000,
+        "DateUpdated": 1740695280000,
+        "DateClosed": 1740695280000,
+        "CrossStreet": null,
+        "GlobalID": "53e9627c-b176-4e1a-9615-c43e4177cbd2",
+        "ZIP": null,
+        "SFTicketID": "500UW00000UleyTYAR",
+        "Address": "Oi",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2781431,
+        "ReferenceNumber": "250401-2960323",
+        "CategoryLevel1": "Other",
+        "CategoryLevel2": "Non City",
+        "CategoryName": "Other Non City",
+        "CouncilDistrictNumber": "Non City",
+        "SourceLevel1": "Phone",
+        "Neighborhood": null,
+        "DateCreated": 1743531480000,
+        "DateUpdated": 1743531480000,
+        "DateClosed": 1743531480000,
+        "CrossStreet": null,
+        "GlobalID": "e7ae5074-9097-4edf-bdd7-33b43e12b2cc",
+        "ZIP": null,
+        "SFTicketID": "500UW00000XUa9VYAT",
+        "Address": "e",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -121.49199497024202,
+        "y": 38.586014992829995
+      }
+    }
+  ]
+}

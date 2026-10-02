@@ -1,0 +1,93 @@
+{
+  "name": "city-no-neighborhood",
+  "description": "Inside a council district but with a null neighborhood.",
+  "synthetic": false,
+  "capturedUtc": "2026-10-02T21:58:57Z",
+  "layer": "https://services5.arcgis.com/54falWtcpty3V47Z/arcgis/rest/services/SalesForce311_View/FeatureServer/0",
+  "queries": [
+    {
+      "where": "CouncilDistrictNumber \u003C\u003E \u0027Non City\u0027 AND Neighborhood IS NULL",
+      "count": 3
+    }
+  ],
+  "features": [
+    {
+      "attributes": {
+        "OBJECTID": 2049270,
+        "ReferenceNumber": "240101-2172155",
+        "CategoryLevel1": "Streets",
+        "CategoryLevel2": "Street Lighting",
+        "CategoryName": "Streets Street Lighting",
+        "CouncilDistrictNumber": "District 4",
+        "SourceLevel1": "Phone",
+        "Neighborhood": null,
+        "DateCreated": 1704067260000,
+        "DateUpdated": 1706127420000,
+        "DateClosed": 1706127420000,
+        "CrossStreet": "MCCORMACK ST",
+        "GlobalID": "e0e435df-6741-4de6-ad60-f1e452010354",
+        "ZIP": "95811",
+        "SFTicketID": "5005G00001pC9TeQAK",
+        "Address": "AHERN ST \u0026 N 12TH ST, SACRAMENTO, 95811",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -121.48140133638682,
+        "y": 38.592675125683584
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2049304,
+        "ReferenceNumber": "240101-2172190",
+        "CategoryLevel1": "Animal Control",
+        "CategoryLevel2": "General",
+        "CategoryName": "Animal Control General",
+        "CouncilDistrictNumber": "District 6",
+        "SourceLevel1": "Phone",
+        "Neighborhood": null,
+        "DateCreated": 1704069780000,
+        "DateUpdated": 1704070740000,
+        "DateClosed": 1704070740000,
+        "CrossStreet": "FOWLER AVE",
+        "GlobalID": "3640a32d-b8d0-4db6-a2bf-cf5fce936826",
+        "ZIP": "95823",
+        "SFTicketID": "5005G00001pC8nNQAS",
+        "Address": "STOCKTON BLVD \u0026 FOWLER AVE, SACRAMENTO, 95823",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -121.43376376815444,
+        "y": 38.505921972749569
+      }
+    },
+    {
+      "attributes": {
+        "OBJECTID": 2049417,
+        "ReferenceNumber": "240101-2172315",
+        "CategoryLevel1": "Other",
+        "CategoryLevel2": "Non City",
+        "CategoryName": "Other Non City",
+        "CouncilDistrictNumber": "District 8",
+        "SourceLevel1": "Phone",
+        "Neighborhood": null,
+        "DateCreated": 1704087960000,
+        "DateUpdated": 1704087960000,
+        "DateClosed": 1704087960000,
+        "CrossStreet": "MACK RD",
+        "GlobalID": "b36e2a3c-1e93-4aa7-b545-e559ae5275bb",
+        "ZIP": "95823",
+        "SFTicketID": "5005G00001pCBdwQAG",
+        "Address": "STOCKTON BLVD \u0026 MACK RD, SACRAMENTO, 95823",
+        "Data_Source": "311",
+        "PublicStatus": "CLOSED"
+      },
+      "geometry": {
+        "x": -121.41898234739369,
+        "y": 38.474343806309506
+      }
+    }
+  ]
+}
