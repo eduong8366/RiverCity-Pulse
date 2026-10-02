@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sac311.Domain\Sac311.Domain.csproj" />
+    <ProjectReference Include="..\Sac311.Data\Sac311.Data.csproj" />
+  </ItemGroup>
+
+</Project>

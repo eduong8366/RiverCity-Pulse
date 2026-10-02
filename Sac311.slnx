@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Sac311.Api/Sac311.Api.csproj" />
+    <Project Path="src/Sac311.Data/Sac311.Data.csproj" />
+    <Project Path="src/Sac311.Domain/Sac311.Domain.csproj" />
+    <Project Path="src/Sac311.Ingestion/Sac311.Ingestion.csproj" />
+    <Project Path="src/Sac311.Worker/Sac311.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Sac311.Api.Tests/Sac311.Api.Tests.csproj" />
+    <Project Path="tests/Sac311.Domain.Tests/Sac311.Domain.Tests.csproj" />
+    <Project Path="tests/Sac311.Integration.Tests/Sac311.Integration.Tests.csproj" />
+  </Folder>
+</Solution>

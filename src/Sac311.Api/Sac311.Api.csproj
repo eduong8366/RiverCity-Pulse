@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Sac311.Data\Sac311.Data.csproj" />
+  </ItemGroup>
+
+</Project>
