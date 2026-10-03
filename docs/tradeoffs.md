@@ -34,3 +34,21 @@ Every job takes `sp_getapplock 'sac311-ingest'` (exclusive, timeout 0) before it
 - **No per-page checkpoint:** incremental runs are 1–3 pages, so a killed run just reruns from the old watermark, and replayed rows come back as unchanged.
 - **60-minute overlap:** each run starts 60 minutes before the watermark. This covers a row edited behind the run's OBJECTID cursor while it was paging, and a source that stamps `DateUpdated` late. The cost is about 100 unchanged rows per run.
 - **Seeded by the backfill:** a finished backfill sets the watermark to the time it *first* started (a resume keeps the original start), or its `--until` if earlier, less the overlap. It only moves an existing watermark backward, never forward: a `--since` slice doesn't cover the gap between an old watermark and its start date, and an earlier watermark only costs a longer, idempotent run.
+
+## Reconcile: mark, never delete, and refuse a truncated feed
+
+Incremental runs only see rows whose `DateUpdated` moved, so they can't notice a request the city deleted, or an edit that didn't move `DateUpdated` past the watermark. The daily reconcile (03:30 Sacramento time) pages through every `ReferenceNumber` and `DateUpdated` the source serves and compares them with `dbo.service_request`.
+
+- **Mark, don't delete:** a request missing from the source gets `source_removed_utc`, and keeps its history. The dashboard can leave it out, and if it comes back (a republish, a feed hiccup) the mark is cleared, by the reconcile or by any run that loads it again. A deleted row couldn't be told apart from one that never existed.
+- **Fetch again what looks wrong:** keys we don't have, or whose source `DateUpdated` is newer than ours, are fetched by `ReferenceNumber IN (...)` and applied like any page. This is the safety net for the incremental watermark.
+- **95% guard:** if the key count falls below 95% of the last successful reconcile's count, the run fails before it marks anything. A truncated response, a half-finished republish or a paging bug would otherwise mark hundreds of thousands of requests removed. The baseline is the last *successful* reconcile (before the first one, the cleaned table's count), so a failed run can't lower the bar for the next one. A real drop of more than 5% needs a person to look, which is the point.
+- **Cost:** about 785 key-only pages (no geometry, three fields), a few minutes once a day.
+
+## Data-quality checks compare with their own history
+
+`DqRunner` writes `ops.dq_result` after every successful run. Each check picks a baseline that its signal can actually move:
+
+- **Source count** against the highest count recorded in the last 7 days, not the previous run. Against the previous run a drop would fail once and then become the new normal; against a 7-day high it keeps failing until it's looked at or ages out. The feed grows about 1,500 rows a day, so a 2% drop is never normal growth.
+- **Null rates** for requests created in the last 7 days against the 90 days before, not over the whole table. Over 1.57M rows, a week of blank addresses barely moves the overall rate; split by created date it shows up as a jump. Periods with fewer than 30 rows are recorded as Info rather than judged.
+- **Flag counts** (sentinel and future dates, bad close dates, unmapped categories and sources, ...) against the previous check, warning on a jump of more than 1% (at least 50 rows). The counts themselves are recorded every run, so a slow drift is visible in `ops.dq_result` even when no single run warns.
+- **DQ never fails a run:** checks run after the run is closed, and an error in them is logged, not thrown. Ingestion keeps the data current; DQ reports on it.
