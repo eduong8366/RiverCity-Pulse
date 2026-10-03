@@ -20,6 +20,7 @@ A data pipeline and dashboard for the City of Sacramento's public 311 service re
 
 - .NET SDK 10.0.401 (pinned in `global.json`)
 - SQL Server Express at `localhost\SQLEXPRESS` with Windows authentication. Create or update the database with `dotnet run --project src/Sac311.Worker -- migrate` (it creates `Sac311` if missing and is safe to rerun). To use a different server, set `ConnectionStrings__Sac311`.
+- Load data with `dotnet run --project src/Sac311.Worker -- backfill --since 30d` (a DateUpdated slice; omit `--since` for the whole feed). Rerunning is safe: unchanged rows only get their last-seen time moved, and no history rows are added. Each run is logged in `ops.ingest_run` and as JSON under `src/Sac311.Worker/logs/`.
 
 ## Data source and terms
 
