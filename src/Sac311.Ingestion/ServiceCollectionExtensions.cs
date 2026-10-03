@@ -60,10 +60,14 @@ public static class ServiceCollectionExtensions
         services.AddArcGisClient();
         services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton(sp => new Sac311Db(sp.GetRequiredService<IConfiguration>().GetConnectionString("Sac311")));
+        services.AddOptions<IngestOptions>().BindConfiguration(IngestOptions.SectionName);
+        services.AddSingleton<IngestLock>();
         services.AddSingleton<RunLog>();
         services.AddSingleton<CheckpointStore>();
         services.AddSingleton<PageWriter>();
+        services.AddSingleton<PageProcessor>();
         services.AddTransient<BackfillJob>();
+        services.AddTransient<IncrementalJob>();
         return services;
     }
 }

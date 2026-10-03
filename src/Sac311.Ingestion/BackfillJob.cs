@@ -1,8 +1,7 @@
 using System.Globalization;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Sac311.Data.Ingest;
-using Sac311.Domain;
-using Sac311.Domain.Cleaners;
 using Sac311.Ingestion.ArcGis;
 
 namespace Sac311.Ingestion;
@@ -15,16 +14,40 @@ public sealed record BackfillRequest(DateTime? SinceUtc = null, DateTime? UntilU
 
 /// <summary>
 /// Loads the feed (or a DateUpdated slice of it) by keyset paging on OBJECTID. Each page goes through
-/// fetch → <c>raw.page</c> → clean → one transaction (stage, <c>usp_apply_batch</c>, rejects, checkpoint, run counters),
-/// so a crash loses at most the page in flight and replaying it is idempotent. The run is recorded in <c>ops.ingest_run</c>.
+/// <see cref="PageProcessor"/>, which advances the checkpoint in the page's transaction, so a crash loses at most the
+/// page in flight and replaying it is idempotent. The run holds the ingest lock and is recorded in <c>ops.ingest_run</c>.
+/// A finished backfill seeds the incremental watermark (see <see cref="SeedWatermark"/>).
 /// </summary>
 public sealed partial class BackfillJob(
-    ArcGisClient client, RunLog runLog, CheckpointStore checkpoints, PageWriter writer, TimeProvider time, ILogger<BackfillJob> logger)
+    ArcGisClient client, IngestLock ingestLock, RunLog runLog, CheckpointStore checkpoints, PageProcessor processor,
+    TimeProvider time, IOptions<IngestOptions> options, ILogger<BackfillJob> logger)
 {
     public async Task<IngestRun> RunAsync(BackfillRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        var held = await ingestLock.TryAcquireAsync(cancellationToken).ConfigureAwait(false);
+        if (held is null)
+        {
+            LogSkipped(logger);
+            return await runLog.SkipAsync(Pipeline.Backfill, cancellationToken).ConfigureAwait(false);
+        }
+
+        await using (held.ConfigureAwait(false))
+        {
+            return await RunLockedAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task<IngestRun> RunLockedAsync(BackfillRequest request, CancellationToken cancellationToken)
+    {
+        var abandoned = await runLog.CloseAbandonedAsync(cancellationToken).ConfigureAwait(false);
+        if (abandoned > 0)
+        {
+            LogAbandoned(logger, abandoned);
+        }
+
+        var startedUtc = time.GetUtcNow().UtcDateTime;
         var where = WhereClause(request.SinceUtc, request.UntilUtc);
         var runId = await runLog.StartAsync(Pipeline.Backfill, request.SinceUtc, request.UntilUtc, cancellationToken).ConfigureAwait(false);
         using var scope = logger.BeginScope(new Dictionary<string, object> { ["RunId"] = runId, ["Pipeline"] = Pipeline.Backfill });
@@ -33,22 +56,15 @@ public sealed partial class BackfillJob(
         try
         {
             // Schema contract first: on drift nothing is written beyond the run row.
-            using (var layer = await client.GetLayerAsync(cancellationToken).ConfigureAwait(false))
+            var contract = await SchemaGuard.CheckAsync(client, logger, cancellationToken).ConfigureAwait(false);
+            if (contract.IsDrift)
             {
-                var contract = SchemaContract.Check(layer.RootElement);
-                if (contract.IsDrift)
-                {
-                    LogSchemaDrift(logger, contract);
-                    return await runLog.FinishAsync(runId, RunStatus.SchemaDrift, "Schema drift: " + contract, CancellationToken.None).ConfigureAwait(false);
-                }
-
-                if (contract.Added.Count > 0)
-                {
-                    LogAddedFields(logger, string.Join(", ", contract.Added));
-                }
+                return await runLog.FinishAsync(runId, RunStatus.SchemaDrift, "Schema drift: " + contract, CancellationToken.None).ConfigureAwait(false);
             }
 
             var cursor = 0L;
+            // When the backfill first started; a resume keeps it so the incremental watermark covers edits made since then.
+            var backfillStartedUtc = startedUtc;
             var existing = await checkpoints.GetAsync(Pipeline.Backfill, cancellationToken).ConfigureAwait(false);
             if (existing is { LastObjectId: { } last } && !request.Restart)
             {
@@ -60,7 +76,8 @@ public sealed partial class BackfillJob(
                 }
 
                 cursor = last;
-                LogResuming(logger, cursor);
+                backfillStartedUtc = existing.WatermarkUtc ?? startedUtc;
+                LogResuming(logger, cursor, backfillStartedUtc);
             }
 
             var expected = await client.CountAsync(string.Create(CultureInfo.InvariantCulture, $"({where}) AND OBJECTID > {cursor}"), cancellationToken)
@@ -73,7 +90,8 @@ public sealed partial class BackfillJob(
             {
                 using (page)
                 {
-                    await ProcessPageAsync(runId, where, page, cancellationToken).ConfigureAwait(false);
+                    await processor.ProcessAsync(runId, Pipeline.Backfill, page, new Checkpoint(Pipeline.Backfill, page.LastObjectId, backfillStartedUtc, where), cancellationToken)
+                        .ConfigureAwait(false);
                 }
 
                 if (++pages == request.MaxPages)
@@ -87,6 +105,11 @@ public sealed partial class BackfillJob(
             {
                 // Nothing in progress any more; the next backfill starts from the beginning.
                 await checkpoints.SaveAsync(new Checkpoint(Pipeline.Backfill, null, null, null), runId, cancellationToken).ConfigureAwait(false);
+
+                var incremental = await checkpoints.GetAsync(Pipeline.Incremental, cancellationToken).ConfigureAwait(false);
+                var seed = SeedWatermark(backfillStartedUtc, request.UntilUtc, options.Value.WatermarkOverlap, incremental?.WatermarkUtc);
+                await checkpoints.SaveAsync(new Checkpoint(Pipeline.Incremental, null, seed, null), runId, cancellationToken).ConfigureAwait(false);
+                LogWatermarkSeeded(logger, seed);
             }
             else
             {
@@ -103,33 +126,6 @@ public sealed partial class BackfillJob(
             var error = ex is OperationCanceledException ? "Cancelled." : ex.ToString();
             return await runLog.FinishAsync(runId, RunStatus.Failed, error, CancellationToken.None).ConfigureAwait(false);
         }
-    }
-
-    private async Task ProcessPageAsync(long runId, string where, ArcGisPage page, CancellationToken cancellationToken)
-    {
-        var nowUtc = time.GetUtcNow().UtcDateTime;
-        var rows = new List<CleanedRequest>(page.Features.Count);
-        var rejects = new List<IngestReject>();
-        foreach (var feature in page.Features)
-        {
-            var source = SourceRow.FromFeature(feature);
-            if (Record.Validate(source) is { } reason)
-            {
-                rejects.Add(new IngestReject(source.ObjectId > 0 ? source.ObjectId : null, source.ReferenceNumber, reason, feature.GetRawText()));
-            }
-            else
-            {
-                rows.Add(CleanedRequest.From(source, nowUtc));
-            }
-        }
-
-        await writer.SaveRawAsync(
-            new RawPage(runId, Pipeline.Backfill, page.Where, page.CursorObjectId, page.Features.Count, (int)page.Elapsed.TotalMilliseconds, page.Payload),
-            cancellationToken).ConfigureAwait(false);
-
-        var counts = await writer.ApplyAsync(runId, rows, rejects, new Checkpoint(Pipeline.Backfill, page.LastObjectId, null, where), page.Features.Count, cancellationToken)
-            .ConfigureAwait(false);
-        LogPage(logger, page.LastObjectId, page.Features.Count, counts.Inserted, counts.Updated, counts.Unchanged, rejects.Count, (long)page.Elapsed.TotalMilliseconds);
     }
 
     /// <summary>The ArcGIS filter for a DateUpdated slice (UTC timestamps).</summary>
@@ -149,29 +145,41 @@ public sealed partial class BackfillJob(
         return parts.Count == 0 ? "1=1" : string.Join(" AND ", parts);
     }
 
-    private static string Timestamp(DateTime utc) => "TIMESTAMP '" + utc.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + "'";
+    /// <summary>
+    /// The incremental watermark after a finished backfill: everything edited before the backfill first started (or
+    /// before <paramref name="untilUtc"/>, if earlier) is loaded, so incremental picks up from there, less the overlap.
+    /// It never moves an existing watermark forward: a sliced backfill doesn't cover the gap between an old watermark
+    /// and its <c>--since</c>, and an earlier watermark only costs a longer, idempotent incremental run.
+    /// </summary>
+    public static DateTime SeedWatermark(DateTime backfillStartedUtc, DateTime? untilUtc, TimeSpan overlap, DateTime? existingUtc)
+    {
+        var covered = untilUtc is { } u && u < backfillStartedUtc ? u : backfillStartedUtc;
+        var seed = covered - overlap;
+        return existingUtc is { } e && e < seed ? e : seed;
+    }
+
+    internal static string Timestamp(DateTime utc) => "TIMESTAMP '" + utc.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + "'";
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Backfill skipped: another ingestion job holds the lock")]
+    private static partial void LogSkipped(ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Closed {Count} run(s) left Running by a process that ended early")]
+    private static partial void LogAbandoned(ILogger logger, int count);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Backfill run {RunId} started: {Where}")]
     private static partial void LogStarted(ILogger logger, long runId, string where);
 
-    [LoggerMessage(Level = LogLevel.Critical, Message = "Schema drift, stopping without writing: {Contract}")]
-    private static partial void LogSchemaDrift(ILogger logger, SchemaCheckResult contract);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "The layer has fields the contract doesn't know: {Fields}")]
-    private static partial void LogAddedFields(ILogger logger, string fields);
-
     [LoggerMessage(Level = LogLevel.Error, Message = "{Message}")]
     private static partial void LogFilterMismatch(ILogger logger, string message);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Resuming after OBJECTID {Cursor}")]
-    private static partial void LogResuming(ILogger logger, long cursor);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Resuming after OBJECTID {Cursor} (backfill first started {BackfillStartedUtc:u})")]
+    private static partial void LogResuming(ILogger logger, long cursor, DateTime backfillStartedUtc);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Source count for this filter: {Expected:N0}")]
     private static partial void LogExpected(ILogger logger, long expected);
 
-    [LoggerMessage(Level = LogLevel.Information,
-        Message = "Page to OBJECTID {LastObjectId}: {Fetched} fetched, {Inserted} inserted, {Updated} updated, {Unchanged} unchanged, {Rejected} rejected ({HttpMs} ms)")]
-    private static partial void LogPage(ILogger logger, long lastObjectId, int fetched, int inserted, int updated, int unchanged, int rejected, long httpMs);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Incremental watermark set to {WatermarkUtc:u}")]
+    private static partial void LogWatermarkSeeded(ILogger logger, DateTime watermarkUtc);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Stopped after {Pages} page(s) as asked; the next backfill resumes from the checkpoint.")]
     private static partial void LogStoppedEarly(ILogger logger, int pages);

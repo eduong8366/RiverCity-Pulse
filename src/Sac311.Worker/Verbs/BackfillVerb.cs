@@ -1,12 +1,11 @@
 using System.Globalization;
-using Sac311.Data.Ingest;
 using Sac311.Ingestion;
 
 namespace Sac311.Worker.Verbs;
 
 /// <summary>
 /// <c>worker backfill [--since 2026-09-02 | --since 30d] [--until 2026-10-02] [--restart] [--max-pages N]</c>.
-/// Dates are UTC days. Exit code 0 when the run succeeded, 3 on schema drift, 1 otherwise.
+/// Dates are UTC days. Exit codes as in <see cref="RunExitCode"/>.
 /// </summary>
 internal sealed partial class BackfillVerb(BackfillJob job, TimeProvider time, ILogger<BackfillVerb> logger) : IVerb
 {
@@ -40,12 +39,7 @@ internal sealed partial class BackfillVerb(BackfillJob job, TimeProvider time, I
         }
 
         var run = await job.RunAsync(request, cancellationToken).ConfigureAwait(false);
-        return run.Status switch
-        {
-            RunStatus.Succeeded => 0,
-            RunStatus.SchemaDrift => 3,
-            _ => 1,
-        };
+        return RunExitCode.For(run);
     }
 
     // "2026-09-02" is that UTC midnight; "30d" is 30 days before today's UTC midnight.

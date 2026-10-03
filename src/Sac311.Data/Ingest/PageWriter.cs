@@ -47,16 +47,15 @@ public sealed class PageWriter(Sac311Db db)
 
     /// <summary>
     /// In one transaction: reload <c>stg.request</c> with the page (SqlBulkCopy), run <c>usp_apply_batch</c>, record the
-    /// rejects, move the checkpoint and add to the run's counters. A crash before the commit leaves nothing behind, and
-    /// the next run replays the page from the old checkpoint.
+    /// rejects, move the checkpoint (when one is given) and add to the run's counters. A crash before the commit leaves
+    /// nothing behind, and the next run replays the page from the old checkpoint.
     /// </summary>
     public async Task<BatchCounts> ApplyAsync(
-        long runId, IReadOnlyList<CleanedRequest> rows, IReadOnlyList<IngestReject> rejects, Checkpoint checkpoint, int fetched,
+        long runId, IReadOnlyList<CleanedRequest> rows, IReadOnlyList<IngestReject> rejects, Checkpoint? checkpoint, int fetched,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(rows);
         ArgumentNullException.ThrowIfNull(rejects);
-        ArgumentNullException.ThrowIfNull(checkpoint);
 
         await using var conn = await db.OpenAsync(cancellationToken).ConfigureAwait(false);
         await using var tx = (SqlTransaction)await conn.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
@@ -91,8 +90,11 @@ public sealed class PageWriter(Sac311Db db)
                 tx, cancellationToken: cancellationToken)).ConfigureAwait(false);
         }
 
-        await conn.ExecuteAsync(new CommandDefinition(CheckpointStore.UpsertSql, CheckpointStore.Parameters(checkpoint, runId), tx, cancellationToken: cancellationToken))
-            .ConfigureAwait(false);
+        if (checkpoint is not null)
+        {
+            await conn.ExecuteAsync(new CommandDefinition(CheckpointStore.UpsertSql, CheckpointStore.Parameters(checkpoint, runId), tx, cancellationToken: cancellationToken))
+                .ConfigureAwait(false);
+        }
 
         await conn.ExecuteAsync(new CommandDefinition(
             """
@@ -106,6 +108,16 @@ public sealed class PageWriter(Sac311Db db)
 
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
         return counts;
+    }
+
+    /// <summary>Deletes a pipeline's raw pages fetched before <paramref name="beforeUtc"/>. Returns the number deleted.</summary>
+    public async Task<int> PruneRawAsync(string pipeline, DateTime beforeUtc, CancellationToken cancellationToken)
+    {
+        await using var conn = await db.OpenAsync(cancellationToken).ConfigureAwait(false);
+        return await conn.ExecuteAsync(new CommandDefinition(
+            "DELETE FROM raw.page WHERE pipeline = @pipeline AND fetched_utc < @beforeUtc;",
+            new { pipeline, beforeUtc },
+            cancellationToken: cancellationToken)).ConfigureAwait(false);
     }
 
     // Column names and types match stg.request; SqlBulkCopy maps by name.

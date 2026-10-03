@@ -14,6 +14,7 @@ builder.Services.AddTransient<IVerb, MigrateVerb>();
 builder.Services.AddTransient<IVerb, CaptureFixtureVerb>();
 builder.Services.AddTransient<IVerb, VerifySourceVerb>();
 builder.Services.AddTransient<IVerb, BackfillVerb>();
+builder.Services.AddTransient<IVerb, IncrementalVerb>();
 
 using var host = builder.Build();
 

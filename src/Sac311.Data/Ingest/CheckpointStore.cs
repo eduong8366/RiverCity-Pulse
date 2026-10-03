@@ -4,7 +4,8 @@ namespace Sac311.Data.Ingest;
 
 /// <summary>
 /// A pipeline's resume point (<c>ops.ingest_checkpoint</c>). Backfill uses <see cref="LastObjectId"/> (null when no
-/// backfill is in progress) and <see cref="WhereClause"/>; incremental uses <see cref="WatermarkUtc"/>.
+/// backfill is in progress), <see cref="WhereClause"/> and <see cref="WatermarkUtc"/> (when the unfinished backfill
+/// first started); incremental uses <see cref="WatermarkUtc"/> (the newest DateUpdated loaded).
 /// </summary>
 public sealed record Checkpoint(string Pipeline, long? LastObjectId, DateTime? WatermarkUtc, string? WhereClause);
 

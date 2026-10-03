@@ -77,6 +77,43 @@ public sealed class RunLog(Sac311Db db)
             cancellationToken: cancellationToken)).ConfigureAwait(false);
     }
 
+    /// <summary>Records a run that didn't start because another job held the ingest lock.</summary>
+    public async Task<IngestRun> SkipAsync(string pipeline, CancellationToken cancellationToken)
+    {
+        var runId = await StartAsync(pipeline, null, null, cancellationToken).ConfigureAwait(false);
+        return await FinishAsync(runId, RunStatus.Skipped, "Another ingestion job holds the '" + IngestLock.Resource + "' lock.", cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Closes runs left as Running by a process that died (killed, crashed, power loss) as Failed. Call it only while
+    /// holding the ingest lock: then no other run can be in progress. Returns the number of runs closed.
+    /// </summary>
+    public async Task<int> CloseAbandonedAsync(CancellationToken cancellationToken)
+    {
+        await using var conn = await db.OpenAsync(cancellationToken).ConfigureAwait(false);
+        return await conn.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE ops.ingest_run
+            SET status = 'Failed',
+                error = 'Abandoned: the process ended before the run finished.',
+                finished_utc = SYSUTCDATETIME(),
+                duration_ms = DATEDIFF_BIG(millisecond, started_utc, SYSUTCDATETIME())
+            WHERE status = 'Running';
+            """,
+            cancellationToken: cancellationToken)).ConfigureAwait(false);
+    }
+
+    /// <summary>Records the watermark range a run covered, once it is known.</summary>
+    public async Task SetWatermarksAsync(long runId, DateTime? watermarkFromUtc, DateTime? watermarkToUtc, CancellationToken cancellationToken)
+    {
+        await using var conn = await db.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await conn.ExecuteAsync(new CommandDefinition(
+            "UPDATE ops.ingest_run SET watermark_from_utc = @watermarkFromUtc, watermark_to_utc = @watermarkToUtc WHERE run_id = @runId;",
+            new { runId, watermarkFromUtc, watermarkToUtc },
+            cancellationToken: cancellationToken)).ConfigureAwait(false);
+    }
+
     public async Task<IngestRun?> GetAsync(long runId, CancellationToken cancellationToken)
     {
         await using var conn = await db.OpenAsync(cancellationToken).ConfigureAwait(false);
