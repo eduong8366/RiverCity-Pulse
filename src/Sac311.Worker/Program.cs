@@ -1,4 +1,5 @@
 using Sac311.Ingestion;
+using Sac311.Worker;
 using Sac311.Worker.Verbs;
 using Serilog;
 
@@ -15,12 +16,15 @@ builder.Services.AddTransient<IVerb, CaptureFixtureVerb>();
 builder.Services.AddTransient<IVerb, VerifySourceVerb>();
 builder.Services.AddTransient<IVerb, BackfillVerb>();
 builder.Services.AddTransient<IVerb, IncrementalVerb>();
+if (verbName == "run")
+{
+    builder.Services.AddHostedService<IngestScheduler>();
+}
 
 using var host = builder.Build();
 
 if (verbName == "run")
 {
-    // The scheduler (BackgroundService + PeriodicTimer) is added in a later session.
     await host.RunAsync();
     return 0;
 }
