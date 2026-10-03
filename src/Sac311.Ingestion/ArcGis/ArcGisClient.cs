@@ -69,9 +69,19 @@ public sealed class ArcGisClient(HttpClient http, IOptions<ArcGisOptions> option
     /// rows at a time, starting after <paramref name="afterObjectId"/>. Offset paging gets slow deep into the table
     /// (2.6 s at offset 1.5M), and OBJECTIDs are sparse, so the cursor is the last OBJECTID seen. The caller disposes each page.
     /// </summary>
-    public async IAsyncEnumerable<ArcGisPage> GetPagesAsync(string where, long afterObjectId, [EnumeratorCancellation] CancellationToken cancellationToken)
+    public IAsyncEnumerable<ArcGisPage> GetPagesAsync(string where, long afterObjectId, CancellationToken cancellationToken) =>
+        GetPagesAsync(where, afterObjectId, "*", returnGeometry: true, cancellationToken);
+
+    /// <summary>Keyset paging as above, returning only <paramref name="outFields"/> (comma-separated; OBJECTID is always added).</summary>
+    public async IAsyncEnumerable<ArcGisPage> GetPagesAsync(
+        string where, long afterObjectId, string outFields, bool returnGeometry, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(where);
+        ArgumentException.ThrowIfNullOrWhiteSpace(outFields);
+        if (outFields != "*" && !outFields.Split(',').Contains("OBJECTID", StringComparer.OrdinalIgnoreCase))
+        {
+            outFields = "OBJECTID," + outFields;
+        }
 
         var cursor = afterObjectId;
         for (var first = true; ; first = false)
@@ -85,11 +95,11 @@ public sealed class ArcGisClient(HttpClient http, IOptions<ArcGisOptions> option
             var parameters = new Dictionary<string, string>
             {
                 ["where"] = pageWhere,
-                ["outFields"] = "*",
+                ["outFields"] = outFields,
                 ["orderByFields"] = "OBJECTID",
                 ["resultRecordCount"] = _options.PageSize.ToString(CultureInfo.InvariantCulture),
                 ["outSR"] = "4326",
-                ["returnGeometry"] = "true",
+                ["returnGeometry"] = returnGeometry ? "true" : "false",
             };
 
             var response = await PostAsync("query", parameters, cancellationToken).ConfigureAwait(false);

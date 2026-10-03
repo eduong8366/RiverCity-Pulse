@@ -36,6 +36,9 @@ public sealed class IngestRun
     public int RowsUnchanged { get; init; }
     public int RowsRejected { get; init; }
     public int RowsHistory { get; init; }
+    public int? SourceCount { get; init; }
+    public int RowsRemoved { get; init; }
+    public int RowsRestored { get; init; }
     public DateTime? WatermarkFromUtc { get; init; }
     public DateTime? WatermarkToUtc { get; init; }
     public string? Error { get; init; }
@@ -114,6 +117,16 @@ public sealed class RunLog(Sac311Db db)
             cancellationToken: cancellationToken)).ConfigureAwait(false);
     }
 
+    /// <summary>Records a reconcile's source key count and what it marked.</summary>
+    public async Task SetReconcileCountsAsync(long runId, int sourceCount, int removed, int restored, CancellationToken cancellationToken)
+    {
+        await using var conn = await db.OpenAsync(cancellationToken).ConfigureAwait(false);
+        await conn.ExecuteAsync(new CommandDefinition(
+            "UPDATE ops.ingest_run SET source_count = @sourceCount, rows_removed = @removed, rows_restored = @restored WHERE run_id = @runId;",
+            new { runId, sourceCount, removed, restored },
+            cancellationToken: cancellationToken)).ConfigureAwait(false);
+    }
+
     public async Task<IngestRun?> GetAsync(long runId, CancellationToken cancellationToken)
     {
         await using var conn = await db.OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -126,6 +139,7 @@ public sealed class RunLog(Sac311Db db)
         SELECT run_id AS RunId, pipeline AS Pipeline, status AS Status, started_utc AS StartedUtc, finished_utc AS FinishedUtc,
                duration_ms AS DurationMs, rows_fetched AS RowsFetched, rows_inserted AS RowsInserted, rows_updated AS RowsUpdated,
                rows_unchanged AS RowsUnchanged, rows_rejected AS RowsRejected, rows_history AS RowsHistory,
+               source_count AS SourceCount, rows_removed AS RowsRemoved, rows_restored AS RowsRestored,
                watermark_from_utc AS WatermarkFromUtc, watermark_to_utc AS WatermarkToUtc, error AS Error
         FROM ops.ingest_run
         WHERE run_id = @runId;

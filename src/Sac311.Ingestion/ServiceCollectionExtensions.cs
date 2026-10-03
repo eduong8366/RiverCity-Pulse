@@ -67,10 +67,12 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<CheckpointStore>();
         services.AddSingleton<PageWriter>();
         services.AddSingleton<PageProcessor>();
+        services.AddSingleton<ReconcileStore>();
         services.AddSingleton<DqStore>();
         services.AddTransient<DqRunner>();
         services.AddTransient<BackfillJob>();
         services.AddTransient<IncrementalJob>();
+        services.AddTransient<ReconcileJob>();
         return services;
     }
 }
