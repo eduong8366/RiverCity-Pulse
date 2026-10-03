@@ -18,9 +18,26 @@ jobs:
     name: .NET build and test
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The integration tests create (and drop) a throwaway database per test class on this server.
+    # Local runs use SQL Express with Windows auth instead; Docker is only needed here.
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2025-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: Sac311_ci_Pa55w0rd
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P Sac311_ci_Pa55w0rd -C -b -Q 'SELECT 1' || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Sac311_ci_Pa55w0rd -b -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 20s
     env:
       DOTNET_NOLOGO: true
       DOTNET_CLI_TELEMETRY_OPTOUT: true
+      SAC311_TEST_SQL: Server=localhost,1433;User Id=sa;Password=Sac311_ci_Pa55w0rd;TrustServerCertificate=True
     steps:
       - uses: actions/checkout@v4
 
