@@ -20,7 +20,8 @@ A data pipeline and dashboard for the City of Sacramento's public 311 service re
 
 - .NET SDK 10.0.401 (pinned in `global.json`)
 - SQL Server Express at `localhost\SQLEXPRESS` with Windows authentication. Create or update the database with `dotnet run --project src/Sac311.Worker -- migrate` (it creates `Sac311` if missing and is safe to rerun). To use a different server, set `ConnectionStrings__Sac311`.
-- Load data with `dotnet run --project src/Sac311.Worker -- backfill --since 30d` (a DateUpdated slice; omit `--since` for the whole feed). Rerunning is safe: unchanged rows only get their last-seen time moved, and no history rows are added. Each run is logged in `ops.ingest_run` and as JSON under `src/Sac311.Worker/logs/`.
+- Load data with `dotnet run --project src/Sac311.Worker -- backfill` (the whole feed, ~1.57M rows, about 10 minutes; `--since 30d` loads a DateUpdated slice). Rerunning is safe: unchanged rows only get their last-seen time moved, and no history rows are added. A killed backfill resumes from its last committed page on the next run. Each run is logged in `ops.ingest_run` and as JSON under `src/Sac311.Worker/logs/`.
+- Keep it current with `dotnet run --project src/Sac311.Worker -- incremental` (one run: rows edited since the watermark that the backfill set, with a 60-minute overlap), or run the scheduler with `dotnet run --project src/Sac311.Worker` (an incremental at startup, then every 15 minutes; `Ingest:IncrementalInterval` changes it). Only one ingestion job runs at a time: a second one is recorded as `Skipped` and exits with code 4.
 
 ## Data source and terms
 
