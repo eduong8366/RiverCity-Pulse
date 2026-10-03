@@ -1,6 +1,67 @@
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.OpenApi;
+using Sac311.Api.Data;
+using Sac311.Api.Endpoints;
+using Sac311.Api.Health;
+using Sac311.Data;
+using Sac311.Data.Aggregates;
+
+const string CachePolicy = "api";
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton(sp => new Sac311Db(sp.GetRequiredService<IConfiguration>().GetConnectionString("Sac311")));
+builder.Services.AddSingleton<AggregateStore>();
+builder.Services.AddSingleton<StatsReader>();
+builder.Services.AddSingleton<FreshnessReader>();
+builder.Services.AddOptions<FreshnessOptions>().BindConfiguration(FreshnessOptions.SectionName);
+
+builder.Services.AddProblemDetails();
+builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document, _, _) =>
+{
+    document.Info = new OpenApiInfo
+    {
+        Title = "RiverCity Pulse API",
+        Version = "v1",
+        Description = "How long Sacramento 311 requests take to close, by neighborhood, district and category. "
+            + "Derived from the City of Sacramento's open 311 data; not official city figures.",
+    };
+    return Task.CompletedTask;
+}));
+
+// The aggregates change at most once per worker run (every 15 minutes), so responses are cached for 5.
+builder.Services.AddOutputCache(options => options.AddPolicy(CachePolicy, policy => policy.Expire(TimeSpan.FromMinutes(5)).SetVaryByQuery("*")));
+
+builder.Services.AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database", tags: [HealthTags.Ready])
+    .AddCheck<FreshnessHealthCheck>("freshness", tags: [HealthTags.Ready]);
+
 var app = builder.Build();
 
-app.MapGet("/", () => "RiverCity Pulse API");
+app.UseExceptionHandler();
+app.UseStatusCodePages();
+app.UseOutputCache();
 
-app.Run();
+app.MapOpenApi();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/openapi/v1.json", "RiverCity Pulse API v1");
+    options.DocumentTitle = "RiverCity Pulse API";
+});
+app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
+
+// Liveness runs no checks; readiness checks the database and data freshness (Degraded when stale, still 200).
+app.MapHealthChecks("/api/health/live", new HealthCheckOptions { Predicate = _ => false, ResponseWriter = HealthResponse.WriteAsync });
+app.MapHealthChecks("/api/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains(HealthTags.Ready),
+    ResponseWriter = HealthResponse.WriteAsync,
+});
+
+app.MapGroup("/api")
+    .CacheOutput(CachePolicy)
+    .MapMetaEndpoints()
+    .MapStatsEndpoints();
+
+await app.RunAsync();
