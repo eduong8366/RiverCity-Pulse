@@ -2,8 +2,9 @@ using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging.Abstractions;
 using Sac311.Data.Migrations;
+using Xunit;
 
-namespace Sac311.Integration.Tests.Fakes;
+namespace Sac311.Testing;
 
 /// <summary>
 /// A throwaway database per test class: <c>Sac311_Test_&lt;guid&gt;</c> on the server in <c>SAC311_TEST_SQL</c> (default:

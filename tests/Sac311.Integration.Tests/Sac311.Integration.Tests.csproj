@@ -14,10 +14,12 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Using Include="Sac311.Testing" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Sac311.Ingestion\Sac311.Ingestion.csproj" />
+    <ProjectReference Include="..\Sac311.Testing\Sac311.Testing.csproj" />
   </ItemGroup>
 
 </Project>
