@@ -42,6 +42,24 @@ public class ReconcileTests(SqlServerFixture db) : DatabaseTest(db)
     }
 
     [Fact]
+    public async Task A_large_refetch_is_stored_with_its_full_where_clause()
+    {
+        Source.Seed(10, NowUtc);
+        await Worker.BackfillAsync();
+        // 120 missed requests: one IN (...) batch of 120 quoted references, over 2,000 characters.
+        for (var i = 0; i < 120; i++)
+        {
+            Source.Features.Add(FakeFeature.Typical(10 + i, NowUtc));
+        }
+
+        var run = await Worker.ReconcileAsync();
+
+        AssertStatus(RunStatus.Succeeded, run);
+        Assert.Equal(120, run.RowsInserted);
+        Assert.True(await Db.ScalarAsync<int>("SELECT MAX(LEN(where_clause)) FROM raw.page WHERE pipeline = 'Reconcile';") > 2000);
+    }
+
+    [Fact]
     public async Task A_request_marked_removed_is_cleared_when_an_incremental_sees_it_again()
     {
         Source.Seed(30, NowUtc);
