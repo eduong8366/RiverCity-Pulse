@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 using Polly;
 using Sac311.Data;
 using Sac311.Data.Ingest;
+using Sac311.Data.Quality;
 using Sac311.Ingestion.ArcGis;
 
 namespace Sac311.Ingestion;
@@ -66,6 +67,8 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<CheckpointStore>();
         services.AddSingleton<PageWriter>();
         services.AddSingleton<PageProcessor>();
+        services.AddSingleton<DqStore>();
+        services.AddTransient<DqRunner>();
         services.AddTransient<BackfillJob>();
         services.AddTransient<IncrementalJob>();
         return services;

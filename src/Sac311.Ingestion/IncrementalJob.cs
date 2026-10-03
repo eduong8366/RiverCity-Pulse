@@ -12,7 +12,7 @@ namespace Sac311.Ingestion;
 /// the newest DateUpdated seen (capped at the run's start), so a killed run is simply repeated by the next one.
 /// </summary>
 public sealed partial class IncrementalJob(
-    ArcGisClient client, IngestLock ingestLock, RunLog runLog, CheckpointStore checkpoints, PageProcessor processor, PageWriter writer,
+    ArcGisClient client, IngestLock ingestLock, RunLog runLog, CheckpointStore checkpoints, PageProcessor processor, PageWriter writer, DqRunner dq,
     TimeProvider time, IOptions<IngestOptions> options, ILogger<IncrementalJob> logger)
 {
     private readonly IngestOptions _options = options.Value;
@@ -28,7 +28,9 @@ public sealed partial class IncrementalJob(
 
         await using (held.ConfigureAwait(false))
         {
-            return await RunLockedAsync(cancellationToken).ConfigureAwait(false);
+            var run = await RunLockedAsync(cancellationToken).ConfigureAwait(false);
+            await dq.RunAfterAsync(run, cancellationToken).ConfigureAwait(false);
+            return run;
         }
     }
 
