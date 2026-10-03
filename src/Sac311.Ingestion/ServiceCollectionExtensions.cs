@@ -1,8 +1,12 @@
 using System.Net;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Polly;
+using Sac311.Data;
+using Sac311.Data.Ingest;
 using Sac311.Ingestion.ArcGis;
 
 namespace Sac311.Ingestion;
@@ -47,6 +51,19 @@ public static class ServiceCollectionExtensions
 
         // Added after the resilience handler, so it runs inside each attempt.
         client.AddHttpMessageHandler(() => new ArcGisErrorHandler());
+        return services;
+    }
+
+    /// <summary>Registers the ingestion jobs and the stores they write to, on the <c>Sac311</c> connection string.</summary>
+    public static IServiceCollection AddIngestion(this IServiceCollection services)
+    {
+        services.AddArcGisClient();
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddSingleton(sp => new Sac311Db(sp.GetRequiredService<IConfiguration>().GetConnectionString("Sac311")));
+        services.AddSingleton<RunLog>();
+        services.AddSingleton<CheckpointStore>();
+        services.AddSingleton<PageWriter>();
+        services.AddTransient<BackfillJob>();
         return services;
     }
 }

@@ -6,10 +6,11 @@ var verbName = args.Length > 0 && !args[0].StartsWith('-') ? args[0] : "run";
 var verbArgs = args.Length > 0 && args[0] == verbName ? args[1..] : args;
 
 var builder = Host.CreateApplicationBuilder(verbArgs);
-builder.Services.AddArcGisClient();
+builder.Services.AddIngestion();
 builder.Services.AddTransient<IVerb, MigrateVerb>();
 builder.Services.AddTransient<IVerb, CaptureFixtureVerb>();
 builder.Services.AddTransient<IVerb, VerifySourceVerb>();
+builder.Services.AddTransient<IVerb, BackfillVerb>();
 
 using var host = builder.Build();
 
