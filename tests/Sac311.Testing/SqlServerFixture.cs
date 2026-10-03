@@ -58,6 +58,10 @@ public sealed class SqlServerFixture : IAsyncLifetime
     {
         await using var conn = await OpenAsync();
         await conn.ExecuteAsync("""
+            TRUNCATE TABLE agg.stats_window;
+            TRUNCATE TABLE agg.open_backlog;
+            TRUNCATE TABLE agg.backlog_daily;
+            DELETE FROM agg.refresh;
             DELETE FROM ops.dq_result;
             DELETE FROM ops.ingest_reject;
             DELETE FROM ops.ingest_checkpoint;

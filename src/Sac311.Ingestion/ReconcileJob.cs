@@ -19,7 +19,7 @@ namespace Sac311.Ingestion;
 /// </para>
 /// </summary>
 public sealed partial class ReconcileJob(
-    ArcGisClient client, IngestLock ingestLock, RunLog runLog, ReconcileStore store, PageProcessor processor, DqRunner dq,
+    ArcGisClient client, IngestLock ingestLock, RunLog runLog, ReconcileStore store, PageProcessor processor, DqRunner dq, AggregateRefresher aggregates,
     IOptions<IngestOptions> options, ILogger<ReconcileJob> logger)
 {
     private readonly IngestOptions _options = options.Value;
@@ -37,6 +37,7 @@ public sealed partial class ReconcileJob(
         {
             var run = await RunLockedAsync(cancellationToken).ConfigureAwait(false);
             await dq.RunAfterAsync(run, cancellationToken).ConfigureAwait(false);
+            await aggregates.RefreshAfterAsync(run, cancellationToken).ConfigureAwait(false);
             return run;
         }
     }

@@ -19,7 +19,7 @@ public sealed record BackfillRequest(DateTime? SinceUtc = null, DateTime? UntilU
 /// A finished backfill seeds the incremental watermark (see <see cref="SeedWatermark"/>).
 /// </summary>
 public sealed partial class BackfillJob(
-    ArcGisClient client, IngestLock ingestLock, RunLog runLog, CheckpointStore checkpoints, PageProcessor processor, DqRunner dq,
+    ArcGisClient client, IngestLock ingestLock, RunLog runLog, CheckpointStore checkpoints, PageProcessor processor, DqRunner dq, AggregateRefresher aggregates,
     TimeProvider time, IOptions<IngestOptions> options, ILogger<BackfillJob> logger)
 {
     public async Task<IngestRun> RunAsync(BackfillRequest request, CancellationToken cancellationToken)
@@ -37,6 +37,7 @@ public sealed partial class BackfillJob(
         {
             var run = await RunLockedAsync(request, cancellationToken).ConfigureAwait(false);
             await dq.RunAfterAsync(run, cancellationToken).ConfigureAwait(false);
+            await aggregates.RefreshAfterAsync(run, cancellationToken).ConfigureAwait(false);
             return run;
         }
     }

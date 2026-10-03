@@ -6,6 +6,7 @@ using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
 using Polly;
 using Sac311.Data;
+using Sac311.Data.Aggregates;
 using Sac311.Data.Ingest;
 using Sac311.Data.Quality;
 using Sac311.Ingestion.ArcGis;
@@ -69,7 +70,9 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<PageProcessor>();
         services.AddSingleton<ReconcileStore>();
         services.AddSingleton<DqStore>();
+        services.AddSingleton<AggregateStore>();
         services.AddTransient<DqRunner>();
+        services.AddTransient<AggregateRefresher>();
         services.AddTransient<BackfillJob>();
         services.AddTransient<IncrementalJob>();
         services.AddTransient<ReconcileJob>();
