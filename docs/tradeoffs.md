@@ -52,3 +52,37 @@ Incremental runs only see rows whose `DateUpdated` moved, so they can't notice a
 - **Null rates** for requests created in the last 7 days against the 90 days before, not over the whole table. Over 1.57M rows, a week of blank addresses barely moves the overall rate; split by created date it shows up as a jump. Periods with fewer than 30 rows are recorded as Info rather than judged.
 - **Flag counts** (sentinel and future dates, bad close dates, unmapped categories and sources, ...) against the previous check, warning on a jump of more than 1% (at least 50 rows). The counts themselves are recorded every run, so a slow drift is visible in `ops.dq_result` even when no single run warns.
 - **DQ never fails a run:** checks run after the run is closed, and an error in them is logged, not thrown. Ingestion keeps the data current; DQ reports on it.
+
+## Percentiles computed in C#, published by `usp_refresh_aggregates`
+
+The API's medians and p90s are precomputed into `agg.*` after each run that changed rows, so every API call is a point lookup. The plan was to compute them in SQL with `PERCENTILE_CONT`. Measured on the live data (1.48M closed-request rows across the 30/90/365-day windows and their prior periods, 8 grouping sets of neighborhood × district × category) on SQL Server 2025 Express:
+
+| Approach | Time |
+|---|---|
+| `PERCENTILE_CONT ... OVER (PARTITION BY ...)` over all grouping sets | ~124 s |
+| `ROW_NUMBER` + `COUNT` interpolation, all sets in one sort | ~65 s |
+| The same, one sort per grouping set | ~53 s |
+| Opened/excluded counts alone with `GROUP BY GROUPING SETS` | ~12 s |
+| **`AggregateBuilder` in C#: one streaming read, then in-memory sorts** | **~7.5 s, ~9 s with publish** |
+
+Express caps the buffer pool and memory grants, so the window sorts spill. Refreshing every 15 minutes with a 1–2 minute query would hold the ingest lock most of the time.
+
+- **Same definition:** `Percentile.Cont` is PERCENTILE_CONT's formula (value at position p × (n − 1), interpolated between neighbours). An integration test checks every cell against a hand-run `PERCENTILE_CONT` query, and the live refresh matched it for the cells checked by hand.
+- **SQL still publishes:** the worker bulk-copies the results into `stg.agg_*`, and `usp_refresh_aggregates` swaps them into `agg.*` and records `agg.refresh` in one transaction. The API reads either the old set or the new one, never half of each.
+- **When it runs:** after any successful run that inserted, updated, removed or restored rows, and at least once per Sacramento day even with no changes, because the windows end "today". It runs under the ingest lock, so two refreshes never share the staging tables. A failed refresh is logged and leaves the previous aggregates in place.
+- **If this outgrows memory:** the builder holds one compact row per closed request in the last 730 days plus the open ones (about 25 MB today). The Developer edition (no Express caps) would make the SQL route viable again with only a connection-string change.
+
+## Trend needs 30 requests per period and a 5% change
+
+`trend` compares the current period's median days to close with the prior period's.
+
+- **Fewer than 30 closed requests in either period gives a null trend.** The median of a handful of requests swings by days from one week to the next. A small neighborhood would otherwise flip between "slower" and "faster" on noise.
+- **A change under 5% is "steady".** Medians are in fractional days, so almost every pair differs a little. The band keeps "slower" for changes someone would act on. `medianChangePct` is still returned, so a client can apply its own threshold.
+
+## The API serves aggregates up to 5 minutes old
+
+Every `/api` data endpoint is cached by OutputCache for 5 minutes, varying by the full query string. The aggregates change at most once per worker run (every 15 minutes), so the cache adds at most 5 minutes of staleness and turns repeated dashboard loads into memory reads. The worker can't evict the API's cache across processes; that was judged not worth a message bus. `/api/health/*` is never cached.
+
+## Stale data is Degraded, not Unhealthy
+
+`/api/health/ready` reports **Degraded (HTTP 200)** when no ingestion run has succeeded for 45 minutes, and **Unhealthy (503)** only when the database is unreachable. With stale data the API still serves the last good aggregates, and `asOf` on every response says how old they are. A load balancer shouldn't pull a working API out of rotation because the upstream feed is down. The freshness monitor planned for M5 is meant to alert on Degraded instead.
