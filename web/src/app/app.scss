@@ -1,0 +1,26 @@
+:host {
+  display: block;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.header p {
+  margin: 2px 0 0;
+}
+
+.main {
+  display: grid;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.footer {
+  margin-top: 24px;
+  font-size: 0.85rem;
+}

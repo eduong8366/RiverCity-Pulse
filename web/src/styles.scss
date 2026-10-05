@@ -1,0 +1,58 @@
+// Visual system from docs/design/decision.md.
+:root {
+  --ink: #10242b;
+  --muted: #4e6168;
+  --page: #f2f5f4;
+  --card: #ffffff;
+  --border: #d9e1e0;
+  --accent: #0b6e69;
+  --slower: #b4480e;
+  --faster: #1f5fa6;
+  --no-data: #dce1e1;
+  --radius: 10px;
+  --control-height: 44px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: 'Public Sans', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+a {
+  color: var(--accent);
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
