@@ -24,7 +24,7 @@ A data pipeline and dashboard for the City of Sacramento's public 311 service re
 - Keep it current with `dotnet run --project src/Sac311.Worker -- incremental` (one run: rows edited since the watermark that the backfill set, with a 60-minute overlap), or run the scheduler with `dotnet run --project src/Sac311.Worker` (an incremental at startup, then every 15 minutes; `Ingest:IncrementalInterval` changes it). Only one ingestion job runs at a time: a second one is recorded as `Skipped` and exits with code 4.
 - The scheduler also runs a daily reconcile at 03:30 Sacramento time (`Ingest:ReconcileTimeLocal`), or run one with `dotnet run --project src/Sac311.Worker -- reconcile`. It compares every ReferenceNumber the source serves with the database: requests gone from the source are marked with `source_removed_utc` (never deleted), and missing or stale ones are fetched again. If the source serves fewer than 95% of the last reconcile's keys, it stops without marking anything.
 - Data-quality checks (source count, null rates, DQ flag counts, rejects, one address with 100+ new requests in a week) run after every successful run and are stored in `ops.dq_result`; `dotnet run --project src/Sac311.Worker -- dq` runs them on demand and prints them. Thresholds and baselines are explained in [`docs/tradeoffs.md`](docs/tradeoffs.md).
-- After every run that changed rows (and at least once a day), the worker classifies requests for the metrics (non-service requests and bulk closures, see [`docs/metrics.md`](docs/metrics.md)) and recomputes the API's aggregates into the `agg` tables, in about 20 seconds; `dotnet run --project src/Sac311.Worker -- aggregates` does it on demand.
+- After every run that changed rows (and at least once a day), the worker classifies requests for the metrics (non-service requests, and the clear-outs that get notes; see [`docs/metrics.md`](docs/metrics.md)) and recomputes the API's aggregates into the `agg` tables, in about 20 seconds; `dotnet run --project src/Sac311.Worker -- aggregates` does it on demand.
 
 ## API
 
@@ -38,18 +38,19 @@ Start it with `dotnet run --project src/Sac311.Api`. It listens on `http://local
 | `GET /api/map/neighborhoods?window=&category=&district=` | Current-period figures per neighborhood, for the map |
 | `GET /api/backlog?from=&to=&category=&district=&grain=day\|week` | Opened, closed and open per day or week, from 2024-01-01 |
 | `GET /api/meta/freshness` | Last runs, incremental watermark, request count, aggregate as-of date, data-quality results |
-| `GET /api/meta/exclusions?window=` | Everything the figures leave out, with counts and reasons: non-service requests by type, bulk closures (largest clear-outs), date problems, and the bulk-closure rule |
+| `GET /api/meta/exclusions?window=` | Everything the figures leave out, with counts and reasons: non-service requests by type and date problems |
+| `GET /api/meta/clear-outs?from=&to=&category=` | Clear-outs of old requests since 2024-01-01 (counted in every figure as recorded), each with a generated one-sentence note, and the rule |
 | `GET /api/health/live`, `/api/health/ready` | Liveness; readiness checks the database (Unhealthy, 503) and that a run succeeded in the last 45 minutes (Degraded, still 200) |
 
-`window` is 30, 90 (default) or 365 days. The current period is the last N days through the as-of date, the prior period is the N days before it. Every figure covers service requests only; medians cover requests closed in the period, leaving out bulk closures and requests with date problems (`excluded`, of which `bulkClosed` were closed in a clear-out). The definitions are in [`docs/metrics.md`](docs/metrics.md), and `/api/meta/exclusions` lists what is left out. `trend` is null when either period has fewer than 30 closed requests, and a change under 5% is `steady`. `category` is a category group such as `Solid Waste` (any case). `district` is a council district from 1 to 8; leave it out for the whole city. Bad parameters return a 400 validation problem, and an unknown slug returns 404.
+`window` is 30, 90 (default) or 365 days. The current period is the last N days through the as-of date, the prior period is the N days before it. Every figure covers service requests only; medians cover requests closed in the period, leaving out only requests with date problems (`excluded`). Clear-outs of old requests are counted as recorded; `bulkClosed` says how many of `closed` were in one, and `/api/meta/clear-outs` describes each. The definitions are in [`docs/metrics.md`](docs/metrics.md), and `/api/meta/exclusions` lists what is left out. `trend` is null when either period has fewer than 30 closed requests, and a change under 5% is `steady`. `category` is a category group such as `Solid Waste` (any case). `district` is a council district from 1 to 8; leave it out for the whole city. Bad parameters return a 400 validation problem, and an unknown slug returns 404.
 
 ```console
 $ curl -s "http://localhost:5264/api/neighborhoods/downtown/stats?window=90"
 {"neighborhood":{"slug":"downtown","name":"Downtown"},"category":null,"windowDays":90,
- "stats":{"current":{"from":"2026-07-07","to":"2026-10-04","opened":2623,"closed":2238,"excluded":1509,"bulkClosed":1026,"medianDays":2.74,"p90Days":155.25},
+ "stats":{"current":{"from":"2026-07-07","to":"2026-10-04","opened":2623,"closed":3264,"excluded":483,"bulkClosed":1036,"medianDays":14.04,"p90Days":666.71},
           "prior":{"from":"2026-04-08","to":"2026-07-06","opened":2859,"closed":2514,"excluded":386,"bulkClosed":0,"medianDays":2.06,"p90Days":60.58},
-          "trend":{"direction":"slower","medianChangePct":33.0},"openBacklog":1354,"medianOpenAgeDays":424.65},
- "asOf":"2026-10-05T00:44:36.983Z"}
+          "trend":{"direction":"slower","medianChangePct":581.6},"openBacklog":1354,"medianOpenAgeDays":424.70},
+ "asOf":"2026-10-05T01:56:19.287Z"}
 
 $ curl -s "http://localhost:5264/api/categories/summary?window=30&district=4"
 $ curl -s "http://localhost:5264/api/map/neighborhoods?window=90&category=Homeless%20Camp"
@@ -62,10 +63,16 @@ $ curl -s "http://localhost:5264/api/backlog?category=Streets&from=2026-09-07"
 
 $ curl -s "http://localhost:5264/api/meta/freshness"
 $ curl -s "http://localhost:5264/api/meta/exclusions?window=90"
+
+$ curl -s "http://localhost:5264/api/meta/clear-outs?category=Parking&from=2026-08-01"
+{"from":"2026-08-01","to":"2026-10-04","category":"Parking","closed":13358,
+ "clearOuts":[{"date":"2026-09-30","category":"Parking","closed":223,"averageDaysToClose":213.10,"minutesSpanned":136,"isSweep":false,"sweepCategories":[],
+                "note":"On 2026-09-30, Parking closed 223 requests averaging 213 days old over 136 minutes."}, ...],
+ "rule":{"minCount":100,"sweepMinCount":50,"detectAgeDays":180,"memberAgeDays":90,"notes":"/api/meta/clear-outs"}, ...}
 $ curl -s "http://localhost:5264/api/health/ready"
 ```
 
-To check a median by hand, run `PERCENTILE_CONT` over the same requests. This returns the downtown figures above (2,238 requests, 2.74 and 155.25 days). [`docs/metrics.md`](docs/metrics.md#check-it-yourself) recomputes the citywide figure from the seeds alone, without the stored flags.
+To check a median by hand, run `PERCENTILE_CONT` over the same requests. This returns the downtown figures above (3,264 requests, 14.04 and 666.71 days; 1,036 of them were in clear-outs). [`docs/metrics.md`](docs/metrics.md#check-it-yourself) recomputes the citywide figure from the seeds alone, without the stored flags.
 
 ```sql
 DECLARE @asOf date = (SELECT TOP (1) as_of_date FROM agg.refresh ORDER BY refresh_id DESC);
