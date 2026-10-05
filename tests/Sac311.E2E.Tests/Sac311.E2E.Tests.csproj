@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The dashboard end to end: the real API on Kestrel over the API tests' seeded database, serving the built Angular app
+    (web/dist) from the same origin, driven in headless Chromium by Playwright. Needs `npm run build` in web/ first.
+  -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.Playwright" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Sac311.Testing" />
+  </ItemGroup>
+
+  <!-- The same hand-checked scenario as the API tests. -->
+  <ItemGroup>
+    <Compile Include="..\Sac311.Api.Tests\Support\*.cs" LinkBase="Support" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Sac311.Api\Sac311.Api.csproj" />
+    <ProjectReference Include="..\Sac311.Testing\Sac311.Testing.csproj" />
+  </ItemGroup>
+
+</Project>

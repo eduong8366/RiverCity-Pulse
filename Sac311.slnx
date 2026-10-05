@@ -9,6 +9,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/Sac311.Api.Tests/Sac311.Api.Tests.csproj" />
     <Project Path="tests/Sac311.Domain.Tests/Sac311.Domain.Tests.csproj" />
+    <Project Path="tests/Sac311.E2E.Tests/Sac311.E2E.Tests.csproj" />
     <Project Path="tests/Sac311.Integration.Tests/Sac311.Integration.Tests.csproj" />
     <Project Path="tests/Sac311.Testing/Sac311.Testing.csproj" />
   </Folder>
