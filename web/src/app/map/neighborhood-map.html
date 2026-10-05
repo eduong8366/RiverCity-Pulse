@@ -1,0 +1,16 @@
+<div
+  #map
+  class="map"
+  role="region"
+  aria-label="Map of median days to close by neighborhood. Tab through the neighborhoods to read their figures."
+></div>
+
+<div class="legend" aria-label="Legend: median days to close">
+  <span class="legend-title">Median days to close</span>
+  <ul>
+    @for (bin of legend(); track bin.label) {
+      <li><span class="swatch" [style.background]="bin.color"></span>{{ bin.label }}</li>
+    }
+    <li><span class="swatch" [style.background]="noData"></span>Under 30 closed</li>
+  </ul>
+</div>

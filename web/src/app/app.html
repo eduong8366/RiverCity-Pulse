@@ -7,6 +7,29 @@
   <section class="card" aria-label="Filters">
     <app-filter-bar [categories]="data.categories()" />
   </section>
+
+  <section class="card map-card" aria-labelledby="map-title">
+    <div class="map-area">
+      <h2 id="map-title" class="card-title">Where requests are slow</h2>
+      @if (data.map.error() || data.boundaries.error()) {
+        <p class="error" role="alert">The map data couldn't be loaded. Is the API running?</p>
+      }
+      <app-neighborhood-map
+        [boundaries]="data.boundaries.value()"
+        [neighborhoods]="mapNeighborhoods()"
+        (hovered)="hovered.set($event)"
+      />
+    </div>
+    <aside class="hover-card" aria-live="polite">
+      @if (card(); as content) {
+        <app-stats-card [content]="content" />
+      } @else if (data.summary.error()) {
+        <p class="error" role="alert">The figures couldn't be loaded.</p>
+      } @else {
+        <p class="muted">Loading…</p>
+      }
+    </aside>
+  </section>
 </main>
 
 <footer class="footer muted">

@@ -1,0 +1,31 @@
+@let c = content();
+<h2>{{ c.title }}</h2>
+<p class="scope">{{ c.scope }}</p>
+
+<dl>
+  <div class="headline">
+    <dt>Median days to close</dt>
+    <dd class="num">{{ days(c.medianDays) }}</dd>
+  </div>
+  <div>
+    <dt>90th percentile</dt>
+    <dd class="num">{{ days(c.p90Days) }}</dd>
+  </div>
+  <div>
+    <dt>Closed</dt>
+    <dd class="num">{{ count(c.closed) }}</dd>
+  </div>
+  <div>
+    <dt>Open now</dt>
+    <dd class="num">{{ count(c.openBacklog) }}</dd>
+  </div>
+</dl>
+
+<p class="trend" [class]="c.trend?.direction ?? 'none'">{{ trend() }}</p>
+
+@if (c.closed < minClosed) {
+  <p class="small">
+    Under {{ minClosed }} closed: too few for a reliable median, so the map leaves it grey.
+  </p>
+}
+<ng-content />

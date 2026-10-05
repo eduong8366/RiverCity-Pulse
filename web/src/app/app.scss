@@ -20,6 +20,32 @@
   margin-top: 16px;
 }
 
+.card-title {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}
+
+.map-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .map-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.hover-card {
+  padding-top: 32px;
+}
+
+.error {
+  color: var(--slower);
+  font-weight: 600;
+}
+
 .footer {
   margin-top: 24px;
   font-size: 0.85rem;

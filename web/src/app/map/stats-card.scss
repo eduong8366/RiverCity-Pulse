@@ -1,0 +1,60 @@
+:host {
+  display: block;
+}
+
+h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.scope,
+.small {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin: 16px 0 0;
+}
+
+dt {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+dd {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.headline {
+  grid-column: 1 / -1;
+}
+
+.headline dd {
+  font-size: 1.8rem;
+  color: var(--accent);
+}
+
+.trend {
+  margin: 14px 0 0;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.trend.slower {
+  color: var(--slower);
+}
+
+.trend.faster {
+  color: var(--faster);
+}
+
+.small {
+  margin-top: 10px;
+}

@@ -1,0 +1,54 @@
+:host {
+  display: block;
+}
+
+.map {
+  height: 520px;
+  border-radius: 8px;
+  background: var(--card);
+}
+
+@media (max-width: 720px) {
+  .map {
+    height: 380px;
+  }
+}
+
+.legend {
+  margin-top: 10px;
+  font-size: 0.85rem;
+}
+
+.legend-title {
+  font-weight: 600;
+  color: var(--muted);
+}
+
+ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+
+:host ::ng-deep path.leaflet-interactive:focus-visible {
+  outline: none;
+  stroke: var(--ink);
+  stroke-width: 3px;
+}
