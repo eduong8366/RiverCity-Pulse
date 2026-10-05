@@ -1,0 +1,122 @@
+<aside class="drawer" role="dialog" aria-modal="false" aria-labelledby="drawer-title">
+  <header>
+    <div>
+      <h2 id="drawer-title" #heading tabindex="-1">{{ title() }}</h2>
+      <p class="scope">{{ scope() }}</p>
+    </div>
+    <button type="button" class="close" (click)="close()" aria-label="Close neighborhood details">
+      ×
+    </button>
+  </header>
+
+  @if (failed()) {
+    <p class="error" role="alert">The neighborhood's figures couldn't be loaded.</p>
+  } @else if (total(); as t) {
+    <table class="data-table compare">
+      <caption class="visually-hidden" [textContent]="compareCaption()"></caption>
+      <thead>
+        <tr>
+          <td></td>
+          <th scope="col" class="num">Last {{ windowDays() }} days</th>
+          <th scope="col" class="num">Prior {{ windowDays() }} days</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="headline">
+          <th scope="row">Median days to close</th>
+          <td class="num">{{ days(t.current.medianDays) }}</td>
+          <td class="num">{{ days(t.prior.medianDays) }}</td>
+        </tr>
+        <tr>
+          <th scope="row">90th percentile</th>
+          <td class="num">{{ days(t.current.p90Days) }}</td>
+          <td class="num">{{ days(t.prior.p90Days) }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Closed</th>
+          <td class="num">{{ count(t.current.closed) }}</td>
+          <td class="num">{{ count(t.prior.closed) }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Opened</th>
+          <td class="num">{{ count(t.current.opened) }}</td>
+          <td class="num">{{ count(t.prior.opened) }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Closed, left out of timing</th>
+          <td class="num">{{ count(t.current.excluded) }}</td>
+          <td class="num">{{ count(t.prior.excluded) }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="small">
+      {{ date(t.current.from) }} – {{ date(t.current.to) }} against {{ date(t.prior.from) }} –
+      {{ date(t.prior.to) }}.
+    </p>
+
+    <p class="trend" [class]="t.trend?.direction ?? 'none'">{{ trend() }}</p>
+
+    <dl class="open">
+      <div>
+        <dt>Open now</dt>
+        <dd class="num">{{ count(t.openBacklog) }}</dd>
+      </div>
+      <div>
+        <dt>Median age of open requests</dt>
+        <dd class="num">{{ days(t.medianOpenAgeDays) }}</dd>
+      </div>
+    </dl>
+
+    @if (bulk(); as line) {
+      <p class="clear-out">{{ line }}</p>
+    }
+
+    <h3>By category</h3>
+    @if (categories().length === 0) {
+      <p class="small">No service requests here under these filters.</p>
+    } @else {
+      <div class="table-wrap">
+        <table class="data-table">
+          <caption class="visually-hidden" [textContent]="categoryCaption()"></caption>
+          <thead>
+            <tr>
+              <th scope="col">Category</th>
+              <th scope="col" class="num">Closed</th>
+              <th scope="col" class="num">Median</th>
+              <th scope="col">Trend</th>
+              <th scope="col" class="num">Open</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (c of categories(); track c.category) {
+              <tr [class.selected]="store.category() === c.category">
+                <th scope="row">
+                  <button
+                    type="button"
+                    class="link-button"
+                    [attr.aria-label]="'Show ' + c.category + ' on the dashboard'"
+                    (click)="pickCategory(c.category)"
+                  >
+                    {{ c.category }}
+                  </button>
+                </th>
+                <td class="num">{{ count(c.stats.current.closed) }}</td>
+                <td class="num">{{ days(c.stats.current.medianDays) }}</td>
+                <td [class]="c.stats.trend?.direction ?? 'none'">
+                  {{ c.stats.trend?.direction ?? '–' }}
+                </td>
+                <td class="num">{{ count(c.stats.openBacklog) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+    <p class="small">
+      Service requests only. Clear-outs are counted as recorded; "How we measure" below lists them
+      and what is left out.
+    </p>
+  } @else if (loading()) {
+    <p class="muted">Loading…</p>
+  }
+</aside>

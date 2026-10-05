@@ -1,0 +1,78 @@
+<div class="head">
+  <h2 id="slower-title">What's getting slower</h2>
+  <div class="segments" role="group" aria-label="Rank">
+    @for (o of options; track o.value) {
+      <button
+        type="button"
+        [attr.aria-pressed]="by() === o.value"
+        [disabled]="byLocked() && o.value === 'category'"
+        (click)="byChange.emit(o.value)"
+      >
+        {{ o.label }}
+      </button>
+    }
+  </div>
+</div>
+
+@if (failed()) {
+  <p class="error" role="alert">The trends couldn't be loaded.</p>
+} @else if (response(); as r) {
+  <p class="sentence">
+    {{ sentence() }}
+    @if (r.category) {
+      Within {{ r.category }}.
+    }
+  </p>
+  @if (r.items.length === 0) {
+    <p class="muted">Nothing got slower by more than 5% under these filters.</p>
+  } @else {
+    <div class="table-wrap">
+      <table class="data-table">
+        <caption class="visually-hidden" [textContent]="caption()"></caption>
+        <thead>
+          <tr>
+            <th scope="col">{{ r.by === 'neighborhood' ? 'Neighborhood' : 'Category' }}</th>
+            <th scope="col" class="num">Median now</th>
+            <th scope="col" class="num">Before</th>
+            <th scope="col" class="num">Added</th>
+            <th scope="col" class="num">Closed</th>
+            <th scope="col" class="num">In clear-outs</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of r.items; track item.key) {
+            <tr>
+              <th scope="row">
+                <button
+                  type="button"
+                  class="link-button"
+                  [attr.aria-label]="
+                    (r.by === 'neighborhood' ? 'Open details for ' : 'Show ') + item.name
+                  "
+                  (click)="open(item.key)"
+                >
+                  {{ item.name }}
+                </button>
+              </th>
+              <td class="num">{{ days(item.current.medianDays) }}</td>
+              <td class="num">{{ days(item.prior.medianDays) }}</td>
+              <td class="num slower">{{ added(item.daysAdded) }}</td>
+              <td class="num">{{ count(item.current.closed) }}</td>
+              <td class="num">
+                {{ item.current.bulkClosed > 0 ? count(item.current.bulkClosed) : '–' }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="small">
+      Ranked by days added to the median, not percent: going from 0.5 to 1.5 days is +200% but
+      rarely felt. Clear-outs of old requests are counted as recorded and raise a median, so a row
+      with many closures in clear-outs may reflect old cases being closed rather than new ones
+      waiting longer.
+    </p>
+  }
+} @else if (loading()) {
+  <p class="muted">Loading…</p>
+}
