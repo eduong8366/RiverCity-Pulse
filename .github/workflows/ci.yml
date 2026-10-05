@@ -54,8 +54,9 @@ jobs:
       - name: Build
         run: dotnet build Sac311.slnx --configuration Release --no-restore
 
+      # The browser tests run in their own job (e2e), which builds the web app first.
       - name: Test
-        run: dotnet test Sac311.slnx --configuration Release --no-build --logger "trx" --results-directory TestResults
+        run: dotnet test Sac311.slnx --configuration Release --no-build --filter "Category!=E2E" --logger "trx" --results-directory TestResults
 
       - name: Upload test results
         if: always()
@@ -93,3 +94,62 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  e2e:
+    name: End-to-end (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # The real API over a seeded throwaway database, serving the built Angular app, driven in headless Chromium.
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2025-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: Sac311_ci_Pa55w0rd
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P Sac311_ci_Pa55w0rd -C -b -Q 'SELECT 1' || /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Sac311_ci_Pa55w0rd -b -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 20
+          --health-start-period 20s
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+      SAC311_TEST_SQL: Server=localhost,1433;User Id=sa;Password=Sac311_ci_Pa55w0rd;TrustServerCertificate=True
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+
+      - name: Build web app
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build
+        run: dotnet build tests/Sac311.E2E.Tests --configuration Release
+
+      # The test host installs Chromium and its system libraries on first use (Microsoft.Playwright's installer).
+      - name: Test
+        run: dotnet test tests/Sac311.E2E.Tests --configuration Release --no-build --logger "trx" --results-directory TestResults
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: TestResults
+          if-no-files-found: ignore
