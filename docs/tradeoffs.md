@@ -86,3 +86,17 @@ Every `/api` data endpoint is cached by OutputCache for 5 minutes, varying by th
 ## Stale data is Degraded, not Unhealthy
 
 `/api/health/ready` reports **Degraded (HTTP 200)** when no ingestion run has succeeded for 45 minutes, and **Unhealthy (503)** only when the database is unreachable. With stale data the API still serves the last good aggregates, and `asOf` on every response says how old they are. A load balancer shouldn't pull a working API out of rotation because the upstream feed is down. The freshness monitor planned for M5 is meant to alert on Degraded instead.
+
+## Metric exclusions are classified before each refresh, in SQL
+
+Headline figures leave out non-service requests and bulk closures ([`metrics.md`](metrics.md)). Neither is decided by the per-row cleaners. `usp_classify_for_metrics` sets them at the start of every aggregate refresh instead.
+
+- **Why not in the cleaners:** both rules depend on more than one row. Non-service depends on the ref maps, which can change without the row changing. Bulk depends on how many other requests in the category closed that day. A cleaner sees one row at a time, so it can't apply either rule.
+- **Why before every refresh:** `usp_apply_batch` rewrites `dq_flags` on a changed row, which clears the bulk bit, and a seed edit changes which rows are non-service. A run that changed rows always refreshes, and the refresh classifies first, so the aggregates never read a stale classification. A seed edit takes effect at the next refresh, with no reclean. The proc writes only rows whose value changes: a rerun on the live data changes 0 rows and takes about 9 s.
+- **Refresh before DQ:** jobs now refresh the aggregates before running the data-quality checks, so the `flag.BulkClosure` count DQ records is the current one. A new clear-out shows up as a flag-count warning on the run that brought it.
+- **Non-service is a column, not a DQ flag:** an information call isn't bad data. `is_service` keeps "what kind of record this is" apart from "is this record's data trustworthy", and it is left out of every figure, while DQ flags only affect timing.
+- **The map key lives in C# and in SQL:** the seeds are keyed by `MapKey.For`, while the classification runs in SQL over raw `category_level1`/`category_level2`. `dbo.fn_map_key` (`REGEXP_REPLACE`, SQL Server 2025) is the SQL copy, and an integration test compares the two on awkward inputs. It runs over the few hundred distinct category pairs, not the 1.57M rows. The alternative was storing both keys on every row, which would have needed a reclean and two more columns to keep in sync.
+- **The exclusion breakdown is plain SQL:** `/api/meta/exclusions` needs counts and averages, not percentiles, so `usp_build_exclusions` computes them with `GROUP BY` (about 6 s with the publish) instead of growing `AggregateBuilder`. It uses the builder's period boundaries, and an integration test checks both against hand counts.
+- **Rule values are code, not configuration:** `BulkClosureRule` (100 closures older than 180 days, members older than 90) is passed to the proc as parameters. A setting someone could tune per deployment would make the published figures depend on who ran them.
+- **Cost:** a refresh went from about 9 s to about 20 s on the live data (classify ~9 s, build ~6 s, publish ~6 s). That is still small next to the 15-minute schedule.
+- **History rows are left alone:** both rules describe a request type or a day's batch, not a version of a request.
