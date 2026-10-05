@@ -58,7 +58,7 @@ public sealed class AlertPublisherTests : IDisposable
         Assert.Equal("Degraded", degraded.GetProperty("status").GetString());
         Assert.Equal("Healthy", degraded.GetProperty("previous").GetString());
         Assert.Equal(
-            "RiverCity Pulse readiness is Degraded (was Healthy)." + Environment.NewLine + "ingestion: Last run 9 stopped on schema drift.",
+            "RiverCity Pulse readiness is Degraded (was Healthy).\ningestion: Last run 9 stopped on schema drift.",
             degraded.GetProperty("text").GetString());
         Assert.Equal(3, degraded.GetProperty("checks").GetArrayLength());
 

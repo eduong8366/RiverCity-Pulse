@@ -79,7 +79,7 @@ internal sealed partial class AlertPublisher(
               + (previous is { } p ? $" (was {p})." : " at startup.");
         var problems = report.Entries.Where(e => e.Value.Status != HealthStatus.Healthy)
             .Select(e => $"{e.Key}: {e.Value.Description}");
-        var text = string.Join(Environment.NewLine, problems.Prepend(headline));
+        var text = string.Join('\n', problems.Prepend(headline));
         return new Alert(text, report.Status.ToString(), previous?.ToString(), nowUtc, checks);
     }
 
