@@ -5,6 +5,7 @@ import { FilterBarComponent } from './filters/filter-bar';
 import { FilterStore } from './filters/filter-store';
 import { FreshnessBadgeComponent } from './freshness/freshness-badge';
 import { CardContent, neighborhoodCard, summaryCard } from './map/card';
+import { HowWeMeasureComponent } from './measure/how-we-measure';
 import { NeighborhoodMapComponent } from './map/neighborhood-map';
 import { StatsCardComponent } from './map/stats-card';
 
@@ -14,6 +15,7 @@ import { StatsCardComponent } from './map/stats-card';
     BacklogChartComponent,
     FilterBarComponent,
     FreshnessBadgeComponent,
+    HowWeMeasureComponent,
     NeighborhoodMapComponent,
     StatsCardComponent,
   ],

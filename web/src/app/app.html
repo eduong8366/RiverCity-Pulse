@@ -43,6 +43,14 @@
     }
     <app-backlog-chart [points]="backlogPoints()" />
   </section>
+
+  <section class="card" aria-labelledby="measure-title">
+    @if (data.exclusions.hasValue()) {
+      <app-how-we-measure [exclusions]="data.exclusions.value()" />
+    } @else if (data.exclusions.error()) {
+      <p class="error" role="alert">The exclusions couldn't be loaded.</p>
+    }
+  </section>
 </main>
 
 <footer class="footer muted">

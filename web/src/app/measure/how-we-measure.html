@@ -1,0 +1,71 @@
+@let x = exclusions();
+@let period = current();
+<h2 id="measure-title">How we measure</h2>
+<p>
+  Every figure covers <strong>service requests</strong>: requests for the city to do something.
+  Medians and the 90th percentile are over the requests closed in the period, with their time to
+  close as recorded. Two kinds of records are left out, and each is counted below (citywide,
+  {{ date(period.from) }} to {{ date(period.to) }}). Definitions, and SQL to check every number:
+  <a [href]="x.definitions">docs/metrics.md</a>.
+</p>
+
+<h3>Not service requests</h3>
+<p>
+  <span class="num">{{ count(period.nonService.opened) }}</span> opened and
+  <span class="num">{{ count(period.nonService.closed) }}</span> closed in the last
+  {{ x.windowDays }} days, and <span class="num">{{ count(x.openNow.open) }}</span> open now. They
+  are left out of every figure, including the backlog.
+</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Type</th>
+        <th scope="col">Why it is left out</th>
+        <th scope="col" class="num">Opened</th>
+        <th scope="col" class="num">Closed</th>
+        <th scope="col" class="num">Open now</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (t of nonService(); track t.type) {
+        <tr>
+          <th scope="row">{{ t.type }}</th>
+          <td>{{ t.reason }}</td>
+          <td class="num">{{ count(t.opened) }}</td>
+          <td class="num">{{ count(t.closed) }}</td>
+          <td class="num">{{ count(t.open) }}</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
+
+<h3>Date problems</h3>
+<p>
+  Closed service requests whose dates can't give a time to close. They count as closed, but are left
+  out of medians and the 90th percentile (a request can have two problems).
+</p>
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Problem</th>
+        <th scope="col" class="num">Closed in the last {{ x.windowDays }} days</th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (d of period.dateProblems; track d.flag) {
+        <tr>
+          <th scope="row">{{ d.description }}</th>
+          <td class="num">{{ count(d.closed) }}</td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="2">None in this window.</td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
+<ng-content />
