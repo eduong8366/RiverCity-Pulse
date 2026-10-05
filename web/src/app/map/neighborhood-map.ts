@@ -39,6 +39,8 @@ export class NeighborhoodMapComponent {
   private readonly highlighted = signal<string | null>(null);
   private map?: L.Map;
   private layer?: L.GeoJSON;
+  private outline?: L.GeoJSON;
+  private readonly features = new Map<string, Boundary>();
 
   private readonly bySlug = computed(
     () => new Map(this.neighborhoods().map((n) => [n.slug, n] as const)),
@@ -61,6 +63,11 @@ export class NeighborhoodMapComponent {
       this.map.attributionControl.setPrefix(
         'Boundaries: City of Sacramento · <a href="https://leafletjs.com">Leaflet</a>',
       );
+      // The highlight is drawn in its own pane above the shapes rather than by bringing the shape to the front:
+      // moving a focused <path> in the DOM drops its focus, and moving a hovered one can lose its mouseout.
+      const pane = this.map.createPane('highlight');
+      pane.style.zIndex = '450';
+      pane.style.pointerEvents = 'none';
       this.ready.set(true);
     });
 
@@ -77,33 +84,44 @@ export class NeighborhoodMapComponent {
       this.map.fitBounds(this.layer.getBounds(), { padding: [8, 8] });
     });
 
-    // Restyle when the figures or the highlight change.
+    // Restyle when the figures change.
     effect(() => {
       this.bySlug();
       this.cuts();
-      this.highlighted();
       this.layer?.setStyle((f) => this.style(f as Boundary));
+    });
+
+    // Outline the highlighted neighborhood.
+    effect(() => {
+      const feature = this.features.get(this.highlighted() ?? '');
+      this.outline?.remove();
+      this.outline = undefined;
+      if (feature && this.map) {
+        this.outline = L.geoJSON(feature, {
+          pane: 'highlight',
+          interactive: false,
+          style: { color: '#10242B', weight: 2.5, fill: false },
+        }).addTo(this.map);
+      }
     });
 
     inject(DestroyRef).onDestroy(() => this.map?.remove());
   }
 
   private style(feature: Boundary): L.PathOptions {
-    const slug = feature.properties.slug;
-    const lit = this.highlighted() === slug;
     return {
-      fillColor: fillFor(this.bySlug().get(slug), this.cuts()),
+      fillColor: fillFor(this.bySlug().get(feature.properties.slug), this.cuts()),
       fillOpacity: 0.88,
-      color: lit ? '#10242B' : '#FFFFFF',
-      weight: lit ? 2.5 : 0.8,
+      color: '#FFFFFF',
+      weight: 0.8,
     };
   }
 
   private wire(feature: Boundary, layer: L.Path): void {
     const slug = feature.properties.slug;
+    this.features.set(slug, feature);
     const enter = () => {
       this.highlighted.set(slug);
-      layer.bringToFront();
       this.hovered.emit(slug);
     };
     const leave = () => {
