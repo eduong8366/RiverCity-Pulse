@@ -30,7 +30,13 @@ public sealed class SeededApi : IAsyncLifetime, IDisposable
     public async Task InitializeAsync()
     {
         await Db.InitializeAsync();
+        await SeedAsync(Db);
+        _factory = new ApiFactory(Db.ConnectionString, AsOfUtc.AddMinutes(10));
+    }
 
+    /// <summary>Writes the scenario into <paramref name="db"/> and refreshes its aggregates (also used by the end-to-end tests).</summary>
+    public static async Task SeedAsync(SqlServerFixture db)
+    {
         var seed = new RequestSeeder(AsOfUtc)
             .Closed("downtown", 4, "Streets", 1, 1m)
             .Closed("downtown", 4, "Streets", 2, 2m)
@@ -56,10 +62,10 @@ public sealed class SeededApi : IAsyncLifetime, IDisposable
                 .Closed("central-oak-park", 5, "Solid Waste", 30 + i, 2m);
         }
 
-        await seed.SaveAsync(Db);
-        await ApiFactory.RefreshAggregatesAsync(Db, AsOfUtc);
+        await seed.SaveAsync(db);
+        await ApiFactory.RefreshAggregatesAsync(db, AsOfUtc);
 
-        await using (var conn = await Db.OpenAsync())
+        await using (var conn = await db.OpenAsync())
         {
             var runId = await conn.ExecuteScalarAsync<long>(
                 """
@@ -77,8 +83,6 @@ public sealed class SeededApi : IAsyncLifetime, IDisposable
                 """,
                 new { AsOfUtc, runId });
         }
-
-        _factory = new ApiFactory(Db.ConnectionString, AsOfUtc.AddMinutes(10));
     }
 
     public async Task DisposeAsync()
