@@ -21,7 +21,8 @@ type Boundary = Feature<Geometry, { NAME: string; slug: string }>;
 
 /**
  * Leaflet choropleth of median days to close per neighborhood: five quantile bins over the neighborhoods with 30+
- * closed requests, the rest grey. Hovering (or focusing) a neighborhood emits its slug.
+ * closed requests, the rest grey. Hovering (or focusing) a neighborhood emits its slug; clicking it (or Enter) picks
+ * it, and the picked one stays outlined.
  */
 @Component({
   selector: 'app-neighborhood-map',
@@ -33,10 +34,14 @@ export class NeighborhoodMapComponent {
   readonly boundaries = input<NeighborhoodBoundaries>();
   readonly neighborhoods = input<readonly MapNeighborhood[]>([]);
   readonly hovered = output<string | null>();
+  /** The picked neighborhood (its drawer is open). */
+  readonly selected = input<string | null>(null);
+  readonly picked = output<string>();
 
   private readonly host = viewChild.required<ElementRef<HTMLElement>>('map');
   private readonly ready = signal(false);
   private readonly highlighted = signal<string | null>(null);
+  private readonly drawn = signal(false);
   private map?: L.Map;
   private layer?: L.GeoJSON;
   private outline?: L.GeoJSON;
@@ -82,6 +87,7 @@ export class NeighborhoodMapComponent {
         onEachFeature: (f, layer) => this.wire(f as Boundary, layer as L.Path),
       }).addTo(this.map);
       this.map.fitBounds(this.layer.getBounds(), { padding: [8, 8] });
+      this.drawn.set(true);
     });
 
     // Restyle when the figures change.
@@ -91,9 +97,10 @@ export class NeighborhoodMapComponent {
       this.layer?.setStyle((f) => this.style(f as Boundary));
     });
 
-    // Outline the highlighted neighborhood.
+    // Outline the hovered neighborhood, else the picked one (once the shapes are drawn).
     effect(() => {
-      const feature = this.features.get(this.highlighted() ?? '');
+      this.drawn();
+      const feature = this.features.get(this.highlighted() ?? this.selected() ?? '');
       this.outline?.remove();
       this.outline = undefined;
       if (feature && this.map) {
@@ -130,16 +137,24 @@ export class NeighborhoodMapComponent {
         this.hovered.emit(null);
       }
     };
-    layer.on({ mouseover: enter, mouseout: leave, click: enter });
+    const pick = () => this.picked.emit(slug);
+    layer.on({ mouseover: enter, mouseout: leave, click: pick });
     // Keyboard: each neighborhood is a focusable shape named for screen readers.
     layer.on('add', () => {
       const element = layer.getElement();
       if (element) {
         element.setAttribute('tabindex', '0');
-        element.setAttribute('role', 'img');
+        element.setAttribute('role', 'button');
         element.setAttribute('aria-label', feature.properties.NAME);
         element.addEventListener('focus', enter);
         element.addEventListener('blur', leave);
+        element.addEventListener('keydown', (event) => {
+          const key = (event as KeyboardEvent).key;
+          if (key === 'Enter' || key === ' ') {
+            event.preventDefault();
+            pick();
+          }
+        });
       }
     });
   }

@@ -24,6 +24,10 @@ export function formatTrend(trend: Trend | null, windowDays: number): string {
   if (trend.direction === 'steady') {
     return `Steady (within 5% of the prior ${windowDays} days)`;
   }
+  if (trend.medianChangePct === null) {
+    // Only a slower trend can start from a median of 0.
+    return `Slower than the prior ${windowDays} days (up from a median of 0)`;
+  }
   const pct = Math.abs(trend.medianChangePct).toLocaleString('en-US', {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,

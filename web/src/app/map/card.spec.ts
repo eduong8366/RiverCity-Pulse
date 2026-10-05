@@ -25,6 +25,7 @@ function stats(closed: number, medianDays: number, bulkClosed = 0): CellStats {
 const summary: CategorySummaryResponse = {
   windowDays: 90,
   district: null,
+  neighborhood: null,
   total: stats(122273, 5.89, 14689),
   categories: [{ category: 'Parking', stats: stats(9000, 12.5, 13000) }],
   asOf: '2026-10-05T02:02:19.6Z',

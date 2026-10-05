@@ -51,6 +51,22 @@ describe('backlogOption', () => {
     expect(weekReadout(points[0], false)).not.toContain('Clear-outs');
   });
 
+  it('by day, marks and reads out the clear-out on its own date', () => {
+    const days: BacklogPoint[] = [
+      { date: '2026-10-02', opened: 1200, closed: 1100, open: 45800 },
+      { date: '2026-10-03', opened: 900, closed: 1500, open: 45200 },
+    ];
+    const option = backlogOption(days, [streets], null, 'day');
+    const series = option.series as Series;
+
+    expect(series[0].name).toBe('Open at end of day');
+    expect(series[1].data).toEqual([['2026-10-03', 45200]]);
+    const readout = weekReadout(days[1], true, [streets], null, 'day');
+    expect(readout).toContain('<strong>Oct 3, 2026 (so far)</strong>');
+    expect(readout).toContain('Open at end of day');
+    expect(readout).toContain('<strong>Clear-outs on this day</strong>');
+  });
+
   it('adds the notes of the week, saying they are citywide in a district view', () => {
     const city = weekReadout(points[1], true, [streets]);
     expect(city).toContain('<strong>Clear-outs this week</strong>');

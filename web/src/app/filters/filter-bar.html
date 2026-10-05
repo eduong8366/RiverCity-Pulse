@@ -36,4 +36,26 @@
       }
     </select>
   </label>
+
+  <label class="field">
+    <span>Neighborhood</span>
+    <select #neighborhood (change)="onNeighborhood(neighborhood.value)">
+      <option value="" [selected]="store.neighborhood() === null">None selected</option>
+      @for (n of neighborhoods(); track n.slug) {
+        <option [value]="n.slug" [selected]="store.neighborhood() === n.slug">{{ n.name }}</option>
+      }
+      @if (unknownNeighborhood(); as slug) {
+        <option [value]="slug" selected>{{ slug }}</option>
+      }
+    </select>
+  </label>
+
+  <label class="field">
+    <span>Backlog chart</span>
+    <select #range (change)="onRange(range.value)">
+      @for (r of ranges; track r.value) {
+        <option [value]="r.value" [selected]="store.range() === r.value">{{ r.label }}</option>
+      }
+    </select>
+  </label>
 </form>

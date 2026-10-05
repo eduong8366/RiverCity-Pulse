@@ -1,5 +1,6 @@
 <div #chart class="chart" role="img" [attr.aria-label]="'Backlog chart. ' + summary()"></div>
 <p class="footnote">
-  Service requests only; weeks start on Monday. The feed only includes requests last updated on or
-  after 2024-01-01, so the early-2024 backlog may be undercounted.
+  Service requests only{{ grain() === 'week' ? '; weeks start on Monday' : '' }}. The feed only
+  includes requests last updated on or after 2024-01-01, so the early-2024 backlog may be
+  undercounted.
 </p>

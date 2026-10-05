@@ -56,3 +56,60 @@ a {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+// Figures tables (categories table, drawer, slower panel).
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+
+  th,
+  td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  thead th {
+    color: var(--muted);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .num {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .slower {
+    color: var(--slower);
+  }
+
+  .faster {
+    color: var(--faster);
+  }
+
+  tr.selected {
+    background: #e3f1ee;
+  }
+}
+
+// A button that reads as a link (a name that sets a filter or opens a drawer).
+.link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}

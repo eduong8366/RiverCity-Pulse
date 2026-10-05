@@ -7,7 +7,7 @@ import type {
 } from 'echarts/components';
 import type { ComposeOption } from 'echarts/core';
 import { BacklogPoint, ClearOutNote } from '../api/models';
-import { byWeek } from '../lib/clear-outs';
+import { byDay, byWeek } from '../lib/clear-outs';
 import { formatCount, formatDate } from '../lib/format';
 
 export type BacklogOption = ComposeOption<
@@ -35,17 +35,18 @@ export function escapeHtml(text: string): string {
 }
 
 /**
- * The hover readout for one week, with the notes of any clear-outs in it. The last week is usually still running, so it
- * says so. The notes describe citywide clear-outs, so a district view says that.
+ * The hover readout for one week (or day), with the notes of any clear-outs in it. The last one is usually still
+ * running, so it says so. The notes describe citywide clear-outs, so a district view says that.
  */
 export function weekReadout(
   point: BacklogPoint,
   isLast: boolean,
   notes: readonly ClearOutNote[] = [],
   district: number | null = null,
+  grain: 'day' | 'week' = 'week',
 ): string {
   const rows = [
-    ['Open at end of week', point.open],
+    [`Open at end of ${grain}`, point.open],
     ['Opened', point.opened],
     ['Closed', point.closed],
   ]
@@ -54,28 +55,30 @@ export function weekReadout(
         `<tr><td>${label}</td><td class="num">${formatCount(value as number)}</td></tr>`,
     )
     .join('');
-  const title = `Week of ${formatDate(point.date)}${isLast ? ' (so far)' : ''}`;
+  const title = `${grain === 'week' ? 'Week of ' : ''}${formatDate(point.date)}${isLast ? ' (so far)' : ''}`;
   const readout = `<strong>${escapeHtml(title)}</strong><table>${rows}</table>`;
   if (notes.length === 0) {
     return readout;
   }
-  const heading = district === null ? 'Clear-outs this week' : 'Clear-outs this week (citywide)';
+  const when = grain === 'week' ? 'this week' : 'on this day';
+  const heading = district === null ? `Clear-outs ${when}` : `Clear-outs ${when} (citywide)`;
   const items = notes.map((n) => `<li>${escapeHtml(n.note)}</li>`).join('');
   return `${readout}<div class="clear-outs"><strong>${heading}</strong><ul>${items}</ul>Counted as recorded.</div>`;
 }
 
 /**
- * Weekly backlog: the open count as an area on top, opened vs closed per week as bars below, sharing one time axis and
- * one hover readout. Weeks with a clear-out get a marker on the open line and the clear-out's note in the readout.
+ * Backlog by week (or day): the open count as an area on top, opened vs closed per period as bars below, sharing one
+ * time axis and one hover readout. Periods with a clear-out get a marker on the open line and its note in the readout.
  */
 export function backlogOption(
   points: readonly BacklogPoint[],
   clearOuts: readonly ClearOutNote[] = [],
   district: number | null = null,
+  grain: 'day' | 'week' = 'week',
 ): BacklogOption {
   const dates = points.map((p) => p.date);
-  const weeks = byWeek(clearOuts);
-  const markers = points.filter((p) => weeks.has(p.date)).map((p) => [p.date, p.open]);
+  const periods = grain === 'week' ? byWeek(clearOuts) : byDay(clearOuts);
+  const markers = points.filter((p) => periods.has(p.date)).map((p) => [p.date, p.open]);
   const axisLabel = {
     color: MUTED,
     // Month and year ("Aug 2026"); ECharts thins the labels to fit.
@@ -102,7 +105,7 @@ export function backlogOption(
         const index = (Array.isArray(params) ? params[0] : params).dataIndex;
         const point = points[index];
         const last = index === points.length - 1;
-        return weekReadout(point, last, weeks.get(point.date), district);
+        return weekReadout(point, last, periods.get(point.date), district, grain);
       },
     },
     xAxis: [
@@ -120,14 +123,14 @@ export function backlogOption(
       {
         type: 'value',
         gridIndex: 1,
-        name: 'Per week',
+        name: grain === 'week' ? 'Per week' : 'Per day',
         nameTextStyle: { color: MUTED },
         ...valueAxis,
       },
     ],
     series: [
       {
-        name: 'Open at end of week',
+        name: `Open at end of ${grain}`,
         type: 'line',
         xAxisIndex: 0,
         yAxisIndex: 0,

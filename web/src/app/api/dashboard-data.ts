@@ -1,6 +1,7 @@
 import { httpResource } from '@angular/common/http';
-import { computed, inject, Injectable } from '@angular/core';
+import { computed, inject, Injectable, signal } from '@angular/core';
 import { FilterStore } from '../filters/filter-store';
+import { chartWindow } from '../filters/filters';
 import {
   BacklogResponse,
   CategorySummaryResponse,
@@ -9,6 +10,8 @@ import {
   FreshnessResponse,
   MapResponse,
   NeighborhoodBoundaries,
+  SlowerBy,
+  SlowerResponse,
 } from './models';
 
 /** Query parameters with the unset filters left out (the API reads a missing one as "all"). */
@@ -54,10 +57,58 @@ export class DashboardData {
     }),
   }));
 
+  /** The backlog chart's range, counted back from the aggregates' as-of date (today until freshness loads). */
+  readonly chart = computed(
+    () => {
+      const asOf =
+        (this.freshness.hasValue() ? this.freshness.value().aggregatesAsOfDate : null) ??
+        new Date().toISOString().slice(0, 10);
+      return chartWindow(this.filters.range(), asOf);
+    },
+    // Equal by value, so freshness arriving doesn't refetch an unchanged range.
+    { equal: (a, b) => a.from === b.from && a.grain === b.grain },
+  );
+
   readonly backlog = httpResource<BacklogResponse>(() => ({
     url: '/api/backlog',
-    params: params({ category: this.filters.category(), district: this.filters.district() }),
+    params: params({
+      category: this.filters.category(),
+      district: this.filters.district(),
+      from: this.chart().from,
+      grain: this.chart().grain,
+    }),
   }));
+
+  /** What the slower panel ranks. With a category selected it can only be neighborhoods (within that category). */
+  readonly slowerChoice = signal<SlowerBy>('neighborhood');
+  readonly slowerBy = computed<SlowerBy>(() =>
+    this.filters.category() ? 'neighborhood' : this.slowerChoice(),
+  );
+
+  readonly slower = httpResource<SlowerResponse>(() => ({
+    url: '/api/trends/slower',
+    params: params({
+      by: this.slowerBy(),
+      window: this.filters.window(),
+      category: this.filters.category(),
+      district: this.filters.district(),
+    }),
+  }));
+
+  /** The selected neighborhood's figures by category (nothing requested while none is selected). */
+  readonly neighborhood = httpResource<CategorySummaryResponse>(() => {
+    const slug = this.filters.neighborhood();
+    return slug
+      ? {
+          url: '/api/categories/summary',
+          params: params({
+            window: this.filters.window(),
+            district: this.filters.district(),
+            neighborhood: slug,
+          }),
+        }
+      : undefined;
+  });
 
   readonly exclusions = httpResource<ExclusionsResponse>(() => ({
     url: '/api/meta/exclusions',

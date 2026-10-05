@@ -1,6 +1,9 @@
 import { CategorySummaryResponse, MapNeighborhood, Trend } from '../api/models';
 import { Filters } from '../filters/filters';
 
+/** The filters a card depends on. */
+export type CardFilters = Pick<Filters, 'window' | 'category' | 'district'>;
+
 /** What the hover card shows: one neighborhood, or the whole selection when nothing is hovered. */
 export interface CardContent {
   title: string;
@@ -15,7 +18,7 @@ export interface CardContent {
 }
 
 /** "Parking · District 4 · last 90 days" */
-export function scopeLabel(filters: Filters): string {
+export function scopeLabel(filters: CardFilters): string {
   return [
     filters.category ?? 'All categories',
     filters.district ? `District ${filters.district}` : 'Whole city',
@@ -27,7 +30,7 @@ export function scopeLabel(filters: Filters): string {
 export function neighborhoodCard(
   name: string,
   figures: MapNeighborhood | undefined,
-  filters: Filters,
+  filters: CardFilters,
 ): CardContent {
   return {
     title: name,
@@ -43,7 +46,7 @@ export function neighborhoodCard(
 }
 
 /** Nothing hovered: the citywide (or district) total, or the selected category's figures. */
-export function summaryCard(summary: CategorySummaryResponse, filters: Filters): CardContent {
+export function summaryCard(summary: CategorySummaryResponse, filters: CardFilters): CardContent {
   const stats = filters.category
     ? summary.categories.find((c) => c.category.toLowerCase() === filters.category?.toLowerCase())
         ?.stats

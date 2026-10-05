@@ -16,7 +16,7 @@ import { BacklogPoint, ClearOutNote } from '../api/models';
 import { formatCount, formatDate } from '../lib/format';
 import { backlogOption } from './backlog-option';
 
-/** ECharts backlog chart, weekly from 2024-01-01. ECharts is loaded on first render, outside the initial bundle. */
+/** ECharts backlog chart, weekly or daily. ECharts is loaded on first render, outside the initial bundle. */
 @Component({
   selector: 'app-backlog-chart',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,6 +29,8 @@ export class BacklogChartComponent {
   readonly clearOuts = input<readonly ClearOutNote[]>([]);
   /** The selected council district, if any: the notes are citywide, and the readout says so. */
   readonly district = input<number | null>(null);
+  /** How the points are grouped: by week (Monday labels) or by day. */
+  readonly grain = input<'day' | 'week'>('week');
 
   private readonly host = viewChild.required<ElementRef<HTMLElement>>('chart');
   private readonly chart = signal<ECharts | null>(null);
@@ -37,8 +39,10 @@ export class BacklogChartComponent {
   protected readonly summary = computed(() => {
     const points = this.points();
     const last = points.at(-1);
+    const weekly = this.grain() === 'week';
     return last
-      ? `Weekly from ${formatDate(points[0].date)}. In the week of ${formatDate(last.date)}, ` +
+      ? `${weekly ? 'Weekly' : 'Daily'} from ${formatDate(points[0].date)}. ` +
+          `${weekly ? 'In the week of' : 'On'} ${formatDate(last.date)}, ` +
           `${formatCount(last.opened)} requests were opened, ${formatCount(last.closed)} closed, ` +
           `and ${formatCount(last.open)} were open at the end.`
       : '';
@@ -66,7 +70,7 @@ export class BacklogChartComponent {
       const chart = this.chart();
       const points = this.points();
       if (chart && points.length > 0) {
-        chart.setOption(backlogOption(points, this.clearOuts(), this.district()), {
+        chart.setOption(backlogOption(points, this.clearOuts(), this.district(), this.grain()), {
           notMerge: true,
         });
       }

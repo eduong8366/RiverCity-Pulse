@@ -2,6 +2,7 @@ import { Location } from '@angular/common';
 import { provideLocationMocks, SpyLocation } from '@angular/common/testing';
 import { TestBed } from '@angular/core/testing';
 import { FilterStore } from './filter-store';
+import { DEFAULT_FILTERS } from './filters';
 
 describe('FilterStore', () => {
   function start(url: string): { store: FilterStore; location: SpyLocation } {
@@ -14,7 +15,7 @@ describe('FilterStore', () => {
   it('starts from the URL', () => {
     const { store } = start('/?window=30&district=2');
 
-    expect(store.filters()).toEqual({ window: 30, category: null, district: 2 });
+    expect(store.filters()).toEqual({ ...DEFAULT_FILTERS, window: 30, district: 2 });
   });
 
   it('writes changes back to the URL without the defaults', () => {

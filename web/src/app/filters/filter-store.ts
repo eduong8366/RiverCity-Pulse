@@ -1,6 +1,6 @@
 import { Location } from '@angular/common';
 import { computed, effect, inject, Injectable, signal } from '@angular/core';
-import { Filters, filtersToQuery, parseFilters, WindowDays } from './filters';
+import { ChartRange, Filters, filtersToQuery, parseFilters, WindowDays } from './filters';
 
 /** The current filters as signals, read from the URL at start and written back to it on every change. */
 @Injectable({ providedIn: 'root' })
@@ -11,11 +11,15 @@ export class FilterStore {
   readonly window = signal<WindowDays>(this.initial.window);
   readonly category = signal<string | null>(this.initial.category);
   readonly district = signal<number | null>(this.initial.district);
+  readonly neighborhood = signal<string | null>(this.initial.neighborhood);
+  readonly range = signal<ChartRange>(this.initial.range);
 
   readonly filters = computed<Filters>(() => ({
     window: this.window(),
     category: this.category(),
     district: this.district(),
+    neighborhood: this.neighborhood(),
+    range: this.range(),
   }));
 
   constructor() {

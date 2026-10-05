@@ -23,12 +23,23 @@ export function weekStart(iso: string): string {
 
 /** Clear-outs grouped by the week they fall in, oldest first within a week. */
 export function byWeek(notes: readonly ClearOutNote[]): Map<string, ClearOutNote[]> {
-  const weeks = new Map<string, ClearOutNote[]>();
+  return groupBy(notes, (n) => weekStart(n.date));
+}
+
+/** Clear-outs grouped by their date (the daily chart's labels). */
+export function byDay(notes: readonly ClearOutNote[]): Map<string, ClearOutNote[]> {
+  return groupBy(notes, (n) => n.date);
+}
+
+function groupBy(
+  notes: readonly ClearOutNote[],
+  key: (note: ClearOutNote) => string,
+): Map<string, ClearOutNote[]> {
+  const groups = new Map<string, ClearOutNote[]>();
   for (const note of [...notes].sort((a, b) => a.date.localeCompare(b.date))) {
-    const week = weekStart(note.date);
-    weeks.set(week, [...(weeks.get(week) ?? []), note]);
+    groups.set(key(note), [...(groups.get(key(note)) ?? []), note]);
   }
-  return weeks;
+  return groups;
 }
 
 /**

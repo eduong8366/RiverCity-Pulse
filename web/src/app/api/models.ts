@@ -5,7 +5,8 @@ export type Direction = 'faster' | 'slower' | 'steady';
 
 export interface Trend {
   direction: Direction;
-  medianChangePct: number;
+  /** Null when the prior median was 0. */
+  medianChangePct: number | null;
 }
 
 export interface PeriodStats {
@@ -30,6 +31,7 @@ export interface CellStats {
 export interface CategorySummaryResponse {
   windowDays: number;
   district: number | null;
+  neighborhood: { slug: string; name: string } | null;
   total: CellStats;
   categories: { category: string; stats: CellStats }[];
   asOf: string;
@@ -164,4 +166,28 @@ export interface NeighborhoodBoundaries {
     properties: { NAME: string; slug: string };
     geometry: Geometry;
   }[];
+}
+
+/** A neighborhood (`key` = slug) or category (`key` = its name) whose median went up; `daysAdded` ranks the list. */
+export interface SlowerItem {
+  key: string;
+  name: string;
+  current: PeriodStats;
+  prior: PeriodStats;
+  daysAdded: number;
+  trend: Trend;
+  openBacklog: number;
+}
+
+export type SlowerBy = 'neighborhood' | 'category';
+
+export interface SlowerResponse {
+  by: SlowerBy;
+  windowDays: number;
+  category: string | null;
+  district: number | null;
+  /** How all the compared neighborhoods or categories split (`noTrend`: under 30 closed in a period). */
+  compared: { slower: number; steady: number; faster: number; noTrend: number };
+  items: SlowerItem[];
+  asOf: string;
 }
