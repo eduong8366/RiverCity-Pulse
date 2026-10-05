@@ -85,7 +85,14 @@ Every `/api` data endpoint is cached by OutputCache for 5 minutes, varying by th
 
 ## Stale data is Degraded, not Unhealthy
 
-`/api/health/ready` reports **Degraded (HTTP 200)** when no ingestion run has succeeded for 45 minutes, and **Unhealthy (503)** only when the database is unreachable. With stale data the API still serves the last good aggregates, and `asOf` on every response says how old they are. A load balancer shouldn't pull a working API out of rotation because the upstream feed is down. The freshness monitor planned for M5 is meant to alert on Degraded instead.
+`/api/health/ready` reports **Degraded (HTTP 200)** when no ingestion run has succeeded for 45 minutes, and **Unhealthy (503)** only when the database is unreachable. With stale data the API still serves the last good aggregates, and `asOf` on every response says how old they are. A load balancer shouldn't pull a working API out of rotation because the upstream feed is down. The freshness monitor alerts on Degraded instead (next section).
+
+## Schema drift degrades readiness at once; the monitor lives in the API
+
+- **Two Degraded causes, two clocks.** `freshness` waits 45 minutes, because one failed run is usually a network blip the next run fixes. `ingestion` degrades as soon as the newest finished run is `SchemaDrift`: every later run checks the same contract and stops the same way, so waiting would only delay the alert. The [schema drift drill](incidents/2026-10-04-schema-drift-drill.md) found that without this check, drift would have gone 45 minutes without anyone being told. A `Failed` run doesn't degrade `ingestion`, or a transient error would page someone for something the scheduler fixes 15 minutes later.
+- **The monitor is an `IHealthCheckPublisher` in the API**, not a timer in the worker. It runs exactly the checks `/api/health/ready` runs, so the alert and the endpoint can't disagree, and it still fires when the worker process has died, which is the case a worker-side monitor would miss. The cost: if the API is down there is no alert either, but then readiness is unreachable too and any external uptime check catches it.
+- **It alerts on changes, not on every check.** One alert when readiness changes (and one at startup if it isn't Healthy), so a drift that lasts all night sends two messages, not 600. A change of cause while still Degraded (drift, then also stale) doesn't alert again; the alert text and `/api/health/ready` list every failing check.
+- **A generic webhook, not a vendor SDK.** The alert is a JSON POST with a `text` field that Slack-style incoming webhooks display as is; the other fields (status, previous status, each check) are there for anything that parses them. With no URL configured, alerts are only logged.
 
 ## Metric classification runs before each refresh, in SQL
 

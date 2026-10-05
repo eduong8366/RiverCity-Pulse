@@ -8,7 +8,7 @@ internal sealed class AlertOptions
 {
     public const string SectionName = "Alerts";
 
-    /// <summary>Optional. When set, every change in readiness is POSTed here as JSON with a <c>text</c> field (Slack- and Teams-style webhooks).</summary>
+    /// <summary>Optional. When set, every change in readiness is POSTed here as JSON with a <c>text</c> field (Slack-style incoming webhooks).</summary>
     public Uri? WebhookUrl { get; set; }
 
     /// <summary>How often the readiness checks run in the background.</summary>
