@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DashboardData } from './api/dashboard-data';
+import { CategoriesTableComponent } from './categories/categories-table';
 import { BacklogChartComponent } from './chart/backlog-chart';
-import { FilterBarComponent } from './filters/filter-bar';
+import { NeighborhoodDrawerComponent } from './drawer/neighborhood-drawer';
+import { FilterBarComponent, NeighborhoodOption } from './filters/filter-bar';
 import { FilterStore } from './filters/filter-store';
 import { FreshnessBadgeComponent } from './freshness/freshness-badge';
 import { forCategory, inPeriod } from './lib/clear-outs';
@@ -9,15 +11,19 @@ import { CardContent, neighborhoodCard, summaryCard } from './map/card';
 import { HowWeMeasureComponent } from './measure/how-we-measure';
 import { NeighborhoodMapComponent } from './map/neighborhood-map';
 import { StatsCardComponent } from './map/stats-card';
+import { SlowerPanelComponent } from './slower/slower-panel';
 
 @Component({
   selector: 'app-root',
   imports: [
     BacklogChartComponent,
+    CategoriesTableComponent,
     FilterBarComponent,
     FreshnessBadgeComponent,
     HowWeMeasureComponent,
+    NeighborhoodDrawerComponent,
     NeighborhoodMapComponent,
+    SlowerPanelComponent,
     StatsCardComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,6 +35,19 @@ export class App {
   protected readonly filters = inject(FilterStore);
 
   protected readonly hovered = signal<string | null>(null);
+
+  /** The 129 neighborhoods from the boundary file, by name. */
+  protected readonly neighborhoodOptions = computed<NeighborhoodOption[]>(() =>
+    (this.data.boundaries.hasValue() ? this.data.boundaries.value().features : [])
+      .map((f) => ({ slug: f.properties.slug, name: f.properties.NAME }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  );
+
+  /** The picked neighborhood's name for the drawer (its slug until the boundaries load). */
+  protected readonly selectedName = computed(() => {
+    const slug = this.filters.neighborhood();
+    return this.neighborhoodOptions().find((n) => n.slug === slug)?.name ?? slug ?? '';
+  });
 
   protected readonly mapNeighborhoods = computed(() =>
     this.data.map.hasValue() ? this.data.map.value().neighborhoods : [],

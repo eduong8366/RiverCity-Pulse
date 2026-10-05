@@ -1,0 +1,65 @@
+@let s = summary();
+<h2 id="categories-title">Categories</h2>
+<p class="scope">
+  {{ s.district ? 'District ' + s.district : 'Whole city' }} · last {{ s.windowDays }} days. Select
+  a column to sort; a category's name filters the dashboard to it.
+</p>
+
+<div class="table-wrap">
+  <table class="data-table">
+    <caption class="visually-hidden" [textContent]="caption()"></caption>
+    <thead>
+      <tr>
+        @for (col of columns; track col.key) {
+          <th scope="col" [class.num]="col.numeric" [attr.aria-sort]="ariaSort(col.key)">
+            <button type="button" class="sort" (click)="sortBy(col.key)">
+              {{ col.label }}
+              <span aria-hidden="true" class="arrow">{{ arrow(col.key) }}</span>
+            </button>
+          </th>
+        }
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="total">
+        <th scope="row">All categories</th>
+        <td class="num">{{ count(s.total.current.opened) }}</td>
+        <td class="num">{{ count(s.total.current.closed) }}</td>
+        <td class="num">{{ days(s.total.current.medianDays) }}</td>
+        <td class="num">{{ days(s.total.current.p90Days) }}</td>
+        <td class="num" [class]="s.total.trend?.direction ?? ''">{{ change(s.total) }}</td>
+        <td class="num">{{ count(s.total.openBacklog) }}</td>
+        <td class="num">{{ days(s.total.medianOpenAgeDays) }}</td>
+        <td class="num">{{ count(s.total.current.bulkClosed) }}</td>
+      </tr>
+      @for (row of rows(); track row.category) {
+        <tr [class.selected]="store.category() === row.category">
+          <th scope="row">
+            <button
+              type="button"
+              class="link-button"
+              [attr.aria-pressed]="store.category() === row.category"
+              (click)="pick(row.category)"
+            >
+              {{ row.category }}
+            </button>
+          </th>
+          <td class="num">{{ count(row.stats.current.opened) }}</td>
+          <td class="num">{{ count(row.stats.current.closed) }}</td>
+          <td class="num">{{ days(row.stats.current.medianDays) }}</td>
+          <td class="num">{{ days(row.stats.current.p90Days) }}</td>
+          <td class="num" [class]="row.stats.trend?.direction ?? ''">{{ change(row.stats) }}</td>
+          <td class="num">{{ count(row.stats.openBacklog) }}</td>
+          <td class="num">{{ days(row.stats.medianOpenAgeDays) }}</td>
+          <td class="num">
+            {{ row.stats.current.bulkClosed > 0 ? count(row.stats.current.bulkClosed) : '–' }}
+          </td>
+        </tr>
+      }
+    </tbody>
+  </table>
+</div>
+<p class="small">
+  Change is the median against the prior {{ s.windowDays }} days ("–": under 30 closed in a period;
+  "steady": within 5%).
+</p>

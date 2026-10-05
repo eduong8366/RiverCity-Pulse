@@ -10,7 +10,7 @@
 
 <main class="main">
   <section class="card" aria-label="Filters">
-    <app-filter-bar [categories]="data.categories()" />
+    <app-filter-bar [categories]="data.categories()" [neighborhoods]="neighborhoodOptions()" />
   </section>
 
   <section class="card map-card" aria-labelledby="map-title">
@@ -22,7 +22,9 @@
       <app-neighborhood-map
         [boundaries]="data.boundaries.value()"
         [neighborhoods]="mapNeighborhoods()"
+        [selected]="filters.neighborhood()"
         (hovered)="hovered.set($event)"
+        (picked)="filters.neighborhood.set($event)"
       />
     </div>
     <aside class="hover-card" aria-live="polite">
@@ -40,6 +42,17 @@
     </aside>
   </section>
 
+  <section class="card" aria-labelledby="slower-title">
+    <app-slower-panel
+      [response]="data.slower.value()"
+      [loading]="data.slower.isLoading()"
+      [failed]="!!data.slower.error()"
+      [by]="data.slowerBy()"
+      [byLocked]="filters.category() !== null"
+      (byChange)="data.slowerChoice.set($event)"
+    />
+  </section>
+
   <section class="card" aria-labelledby="chart-title">
     <h2 id="chart-title" class="card-title">Requests open over time</h2>
     @if (data.backlog.error()) {
@@ -49,7 +62,16 @@
       [points]="backlogPoints()"
       [clearOuts]="clearOuts()"
       [district]="filters.district()"
+      [grain]="data.chart().grain"
     />
+  </section>
+
+  <section class="card" aria-labelledby="categories-title">
+    @if (data.summary.hasValue()) {
+      <app-categories-table [summary]="data.summary.value()" />
+    } @else if (data.summary.error()) {
+      <p class="error" role="alert">The categories couldn't be loaded.</p>
+    }
   </section>
 
   <section class="card" aria-labelledby="measure-title">
@@ -64,6 +86,15 @@
     }
   </section>
 </main>
+
+@if (filters.neighborhood()) {
+  <app-neighborhood-drawer
+    [name]="selectedName()"
+    [summary]="data.neighborhood.value()"
+    [loading]="data.neighborhood.isLoading()"
+    [failed]="!!data.neighborhood.error()"
+  />
+}
 
 <footer class="footer muted">
   <p>

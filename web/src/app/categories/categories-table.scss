@@ -1,0 +1,46 @@
+:host {
+  display: block;
+}
+
+h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.scope,
+.small {
+  margin: 2px 0 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.arrow {
+  font-size: 0.7rem;
+}
+
+.total th,
+.total td {
+  font-weight: 700;
+}
