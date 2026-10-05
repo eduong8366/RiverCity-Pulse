@@ -17,7 +17,7 @@ INSERT INTO @seed (bit_value, name, description, excludes_from_metrics) VALUES
     (512,  'UnknownStatus',             N'PublicStatus is not one of NEW, IN PROGRESS, CLOSED or CANCELLED.', 0),
     (1024, 'UnknownDistrict',           N'CouncilDistrictNumber is neither "District 1" to "District 8" nor "Non City".', 0),
     (2048, 'InvalidZip',                N'ZIP is not a 5-digit or ZIP+4 code and was set to NULL.', 0),
-    (4096, 'BulkClosure',               N'Closed in a clear-out: 100 or more requests in one category older than 180 days were closed on the same day, and this one was older than 90 days. Set before each aggregate refresh; see docs/metrics.md.', 1);
+    (4096, 'BulkClosure',               N'Label: closed in a clear-out (100 or more requests in one category older than 180 days closed on the same day, or 50 or more in the same minute across categories), and older than 90 days itself. Counted in every figure as recorded; shown as a note. Set before each aggregate refresh; see docs/metrics.md.', 0);
 
 UPDATE t
 SET t.name = s.name, t.description = s.description, t.excludes_from_metrics = s.excludes_from_metrics

@@ -25,14 +25,18 @@ public enum DqFlags
     InvalidZip = 2048,
 
     /// <summary>
-    /// Closed in a clear-out: one of many old requests in one category closed on one day (<see cref="BulkClosureRule"/>).
-    /// Set and cleared by <c>usp_classify_for_metrics</c> before each aggregate refresh, not by the cleaners.
+    /// Closed in a clear-out of old requests (<see cref="BulkClosureRule"/>). A label for the published notes, not a
+    /// metric exclusion: these closures are counted as recorded. Set and cleared by <c>usp_classify_for_metrics</c>
+    /// before each aggregate refresh, not by the cleaners.
     /// </summary>
     BulkClosure = 4096,
 
     /// <summary>The date problems: a request with any of these has no trustworthy time to close.</summary>
     DateProblems = SentinelDate | FutureDate | InvalidCloseOrder | ClosedMissingDate,
 
-    /// <summary>Rows with any of these are left out of response-time metrics (<c>is_metric_eligible = 0</c>).</summary>
-    MetricExclusions = DateProblems | BulkClosure,
+    /// <summary>
+    /// Rows with any of these are left out of response-time metrics (<c>is_metric_eligible = 0</c>): only the date
+    /// problems, since Session 7c's method change (docs/metrics.md).
+    /// </summary>
+    MetricExclusions = DateProblems,
 }

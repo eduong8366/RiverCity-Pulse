@@ -6,7 +6,8 @@ namespace Sac311.Api;
 /// <summary>
 /// One period of a window, over service requests only (docs/metrics.md). <c>MedianDays</c> and <c>P90Days</c> are over
 /// the <c>Closed</c> requests (closed in the period with a trustworthy time to close); <c>Excluded</c> counts the closed
-/// requests left out of timing, and <c>BulkClosed</c> the part of those closed in a clear-out.
+/// requests left out of timing (date problems), and <c>BulkClosed</c> the part of <c>Closed</c> closed in a clear-out
+/// (counted as recorded; see /api/meta/clear-outs).
 /// </summary>
 internal sealed record PeriodStats(DateOnly From, DateOnly To, int Opened, int Closed, int Excluded, int BulkClosed, decimal? MedianDays, decimal? P90Days)
 {
@@ -66,27 +67,37 @@ internal sealed record NonServiceType(string CategoryGroup, string Type, string 
 
 internal sealed record NonServiceSummary(int Opened, int Closed, IReadOnlyList<NonServiceType> Types);
 
-/// <summary>One clear-out: service requests in a category closed on one day with the bulk-closure flag, and their average age.</summary>
-internal sealed record BulkClosureDay(DateOnly Date, string Category, int Closed, decimal? AverageDaysToClose);
-
-/// <param name="Closed">Every bulk closure in the period (the sum of the citywide <c>bulkClosed</c>).</param>
-/// <param name="LargestDays">Up to 10 of the period's clear-outs, largest first.</param>
-internal sealed record BulkClosureSummary(int Closed, IReadOnlyList<BulkClosureDay> LargestDays);
-
 /// <summary>Closed service requests left out of timing for one date problem (a request can have two).</summary>
 internal sealed record DateProblemExclusion(string Flag, string Description, int Closed);
 
 internal sealed record ExclusionPeriod(
-    DateOnly From, DateOnly To, NonServiceSummary NonService, BulkClosureSummary BulkClosures, IReadOnlyList<DateProblemExclusion> DateProblems);
+    DateOnly From, DateOnly To, NonServiceSummary NonService, IReadOnlyList<DateProblemExclusion> DateProblems);
 
 internal sealed record NonServiceOpen(string CategoryGroup, string Type, string Reason, int Open);
 
 /// <summary>Non-service requests open at the as-of time (left out of the open backlog).</summary>
 internal sealed record NonServiceOpenNow(int Open, IReadOnlyList<NonServiceOpen> Types);
 
-/// <summary>The bulk-closure rule's values (Sac311.Domain.BulkClosureRule).</summary>
-internal sealed record BulkClosureRules(int MinCount, int DetectAgeDays, int MemberAgeDays);
+/// <summary>
+/// The clear-out rule's values (Sac311.Domain.BulkClosureRule). Clear-outs are counted in every figure as recorded;
+/// <c>Notes</c> is the endpoint that lists them.
+/// </summary>
+internal sealed record ClearOutRules(int MinCount, int SweepMinCount, int DetectAgeDays, int MemberAgeDays, string Notes);
 
 /// <summary>Everything the headline figures leave out, citywide, and why. <c>Definitions</c> links the public write-up.</summary>
 internal sealed record ExclusionsResponse(
-    int WindowDays, ExclusionPeriod Current, ExclusionPeriod Prior, NonServiceOpenNow OpenNow, BulkClosureRules BulkClosureRule, string Definitions, DateTime AsOf);
+    int WindowDays, ExclusionPeriod Current, ExclusionPeriod Prior, NonServiceOpenNow OpenNow, ClearOutRules ClearOutRule, string Definitions, DateTime AsOf);
+
+/// <summary>
+/// One clear-out: a category's requests closed together on one day, old ones (<see cref="ClearOutRules"/>), counted in
+/// every figure as recorded. <c>Note</c> says it in one sentence.
+/// </summary>
+/// <param name="Closed">Requests in the clear-out (closures older than <c>MemberAgeDays</c>).</param>
+/// <param name="MinutesSpanned">Clock minutes from the first of them to the last, inclusive (1: all in one minute).</param>
+/// <param name="SweepCategories">Other categories that closed old requests in the same minute (a sweep), most first; empty if none.</param>
+internal sealed record ClearOutNote(
+    DateOnly Date, string Category, int Closed, decimal AverageDaysToClose, int MinutesSpanned, bool IsSweep, IReadOnlyList<string> SweepCategories, string Note);
+
+/// <param name="Closed">Requests in all the listed clear-outs.</param>
+internal sealed record ClearOutsResponse(
+    DateOnly From, DateOnly To, string? Category, int Closed, IReadOnlyList<ClearOutNote> ClearOuts, ClearOutRules Rule, string Definitions, DateTime AsOf);

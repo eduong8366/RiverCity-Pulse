@@ -82,12 +82,12 @@ public sealed class AggregateBuilder
 
             if (!counted && request.Status == StatusGroup.Closed && PeriodOf(leftBacklog, Windows[w]) is { } excludedIn)
             {
-                var excluded = Count(new PeriodCell(w, excludedIn, cell));
-                excluded.Excluded++;
-                if (request.IsBulkClosure)
-                {
-                    excluded.BulkClosed++;
-                }
+                Count(new PeriodCell(w, excludedIn, cell)).Excluded++;
+            }
+
+            if (counted && request.IsBulkClosure && PeriodOf(request.ClosedLocal!.Value.DayNumber, Windows[w]) is { } bulkIn)
+            {
+                Count(new PeriodCell(w, bulkIn, cell)).BulkClosed++;
             }
         }
 

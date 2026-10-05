@@ -20,7 +20,7 @@ public class ExclusionsEndpointTests(SeededApi api) : IClassFixture<SeededApi>
         var body = (await response.Content.ReadFromJsonAsync<ExclusionsResponse>())!;
 
         Assert.Equal((30, SeededApi.AsOfUtc, MetaEndpoints.Definitions), (body.WindowDays, body.AsOf, body.Definitions));
-        Assert.Equal(new BulkClosureRules(100, 180, 90), body.BulkClosureRule);
+        Assert.Equal(new ClearOutRules(100, 50, 180, 90, "/api/meta/clear-outs"), body.ClearOutRule);
 
         var current = body.Current;
         Assert.Equal((new DateOnly(2026, 9, 3), Today), (current.From, current.To));
@@ -32,15 +32,11 @@ public class ExclusionsEndpointTests(SeededApi api) : IClassFixture<SeededApi>
             current.NonService.Types.Select(t => (t.CategoryGroup, t.Type, t.Opened, t.Closed)));
         Assert.All(current.NonService.Types, t => Assert.False(string.IsNullOrWhiteSpace(t.Reason)));
 
-        // The clear-out: 100 Parking requests closed 3 days ago after 200 days.
-        Assert.Equal(100, current.BulkClosures.Closed);
-        Assert.Equal(new BulkClosureDay(new DateOnly(2026, 9, 29), "Parking", 100, 200m), Assert.Single(current.BulkClosures.LargestDays));
-
-        // The downtown request closed without a close date.
+        // The downtown request closed without a close date. The clear-out is counted, so it isn't listed here.
         var date = Assert.Single(current.DateProblems);
         Assert.Equal(("ClosedMissingDate", 1), (date.Flag, date.Closed));
 
-        Assert.Equal((0, 0, 0), (body.Prior.NonService.Opened, body.Prior.BulkClosures.Closed, body.Prior.DateProblems.Count));
+        Assert.Equal((0, 0), (body.Prior.NonService.Opened, body.Prior.DateProblems.Count));
 
         Assert.Equal(1, body.OpenNow.Open);
         Assert.Equal(("Process/Unclassified", "Review", 1), Assert.Single(body.OpenNow.Types) is var t ? (t.CategoryGroup, t.Type, t.Open) : default);

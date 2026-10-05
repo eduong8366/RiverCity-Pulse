@@ -19,7 +19,11 @@ internal static class MetaEndpoints
 
         api.MapGet("/meta/exclusions", ExclusionsAsync)
             .WithTags("Meta")
-            .WithSummary("What the headline figures leave out and why: non-service requests by type, bulk closures and date problems, with counts.");
+            .WithSummary("What the headline figures leave out and why: non-service requests by type and date problems, with counts.");
+
+        api.MapGet("/meta/clear-outs", ClearOutsAsync)
+            .WithTags("Meta")
+            .WithSummary("Clear-outs of old requests, counted in every figure as recorded, each with a one-sentence note.");
         return api;
     }
 
@@ -81,10 +85,47 @@ internal static class MetaEndpoints
             Period(rows, AggregatePeriod.Current, refresh.AsOfDate, windowDays),
             Period(rows, AggregatePeriod.Prior, refresh.AsOfDate, windowDays),
             new NonServiceOpenNow(open.Sum(t => t.Open), open),
-            new BulkClosureRules(BulkClosureRule.MinCount, BulkClosureRule.DetectAgeDays, BulkClosureRule.MemberAgeDays),
+            ClearOutRule,
             Definitions,
             refresh.AsOfUtc));
     }
+
+    private static async Task<Results<Ok<ClearOutsResponse>, ValidationProblem, ProblemHttpResult>> ClearOutsAsync(
+        [Description("First day (yyyy-MM-dd). Default and earliest: 2024-01-01.")] DateOnly? from,
+        [Description("Last day (yyyy-MM-dd). Default and latest: the as-of date.")] DateOnly? to,
+        [Description("Category group, e.g. 'Parking' (any case). Omit for all categories.")] string? category,
+        ClearOutReader reader,
+        StatsReader stats,
+        AggregateStore store,
+        CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        var group = await QueryRules.CategoryAsync(category, stats, errors, cancellationToken).ConfigureAwait(false);
+        if (from > to)
+        {
+            errors["from"] = ["from must not be after to."];
+        }
+
+        if (errors.Count > 0)
+        {
+            return TypedResults.ValidationProblem(errors);
+        }
+
+        if (await store.LatestAsync(cancellationToken).ConfigureAwait(false) is not { } refresh)
+        {
+            return StatsEndpoints.NoAggregates();
+        }
+
+        var first = from is { } f && f > AggregateBuilder.BacklogStart ? f : AggregateBuilder.BacklogStart;
+        var last = to is { } t && t < refresh.AsOfDate ? t : refresh.AsOfDate;
+        var notes = (await reader.RowsAsync(first, last, group, cancellationToken).ConfigureAwait(false))
+            .Select(ClearOutNotes.Of)
+            .ToList();
+        return TypedResults.Ok(new ClearOutsResponse(first, last, group, notes.Sum(n => n.Closed), notes, ClearOutRule, Definitions, refresh.AsOfUtc));
+    }
+
+    private static ClearOutRules ClearOutRule => new(
+        BulkClosureRule.MinCount, BulkClosureRule.SweepMinCount, BulkClosureRule.DetectAgeDays, BulkClosureRule.MemberAgeDays, "/api/meta/clear-outs");
 
     private static ExclusionPeriod Period(IReadOnlyList<ExclusionRow> rows, string period, DateOnly asOfDate, int windowDays)
     {
@@ -95,9 +136,6 @@ internal static class MetaEndpoints
             .Select(r => new NonServiceType(r.CategoryGroup, r.Label, r.Reason ?? "", r.Opened, r.Closed))
             .OrderByDescending(t => t.Opened + t.Closed).ThenBy(t => t.Type, StringComparer.Ordinal)
             .ToList();
-        var bulk = mine.Where(r => r.Kind == "bulk_day")
-            .Select(r => new BulkClosureDay(DateOnly.FromDateTime(r.Day!.Value), r.CategoryGroup, r.Closed, r.AvgAgeDays))
-            .ToList();
         var dates = mine.Where(r => r.Kind == "dq_flag")
             .Select(r => new DateProblemExclusion(r.Label, r.Reason ?? "", r.Closed))
             .OrderByDescending(d => d.Closed).ThenBy(d => d.Flag, StringComparer.Ordinal)
@@ -107,14 +145,8 @@ internal static class MetaEndpoints
             to.AddDays(1 - windowDays),
             to,
             new NonServiceSummary(types.Sum(t => t.Opened), types.Sum(t => t.Closed), types),
-            new BulkClosureSummary(
-                bulk.Sum(b => b.Closed),
-                [.. bulk.OrderByDescending(b => b.Closed).ThenByDescending(b => b.Date).Take(LargestBulkDays)]),
             dates);
     }
 
     /// <summary>The public write-up of every exclusion.</summary>
-    public const string Definitions = "https://github.com/eduong8366/RiverCity-Pulse/blob/main/docs/metrics.md";
-
-    private const int LargestBulkDays = 10;
-}
+    public const string Definitions = "https://github.com/eduong8366/RiverCity-Pulse/blob/main/docs/metrics.md";}

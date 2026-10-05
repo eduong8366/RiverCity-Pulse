@@ -4,7 +4,7 @@ namespace Sac311.Domain.Aggregates;
 
 /// <summary>One request as the aggregates read it from <c>dbo.service_request</c> (requests still in the source only).</summary>
 /// <param name="IsService">False for a non-service request (an information call, an inbox item...): left out of every figure.</param>
-/// <param name="IsBulkClosure">Closed in a clear-out (<see cref="DqFlags.BulkClosure"/>); also not metric-eligible.</param>
+/// <param name="IsBulkClosure">Closed in a clear-out (<see cref="DqFlags.BulkClosure"/>): a label; still metric-eligible.</param>
 public readonly record struct AggregateRequest(
     string? NeighborhoodSlug,
     byte? DistrictNumber,
@@ -42,8 +42,8 @@ public static class AggregatePeriod
 
 /// <param name="Opened">Requests created in the period.</param>
 /// <param name="Closed">Metric-eligible requests closed in the period; the median and p90 are over these.</param>
-/// <param name="Excluded">Closed requests that left the backlog in the period but are kept out of the metrics (DQ flags, bulk closures included).</param>
-/// <param name="BulkClosed">The part of <paramref name="Excluded"/> closed in a clear-out (<see cref="DqFlags.BulkClosure"/>).</param>
+/// <param name="Excluded">Closed requests that left the backlog in the period but are kept out of the metrics (date problems).</param>
+/// <param name="BulkClosed">The part of <paramref name="Closed"/> closed in a clear-out (<see cref="DqFlags.BulkClosure"/>); counted, shown as a note.</param>
 public sealed record WindowStats(
     int WindowDays, string Period, AggregateCell Cell, int Opened, int Closed, int Excluded, int BulkClosed, decimal? MedianDays, decimal? P90Days);
 

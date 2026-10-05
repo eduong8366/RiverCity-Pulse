@@ -9,7 +9,7 @@ namespace Sac311.Ingestion;
 
 /// <summary>
 /// Recomputes the <c>agg</c> tables the API reads: requests are classified first (<see cref="AggregateStore.ClassifyAsync"/>:
-/// non-service requests and bulk closures, docs/metrics.md), then every request still in the source goes through
+/// non-service requests and the clear-out label, docs/metrics.md), then every request still in the source goes through
 /// <see cref="AggregateBuilder"/>, and <see cref="AggregateStore.PublishAsync"/> swaps the result in. Runs after each
 /// successful ingestion run that changed rows, and at least once per Sacramento day (the windows end "today").
 /// </summary>
@@ -55,7 +55,7 @@ public sealed partial class AggregateRefresher(AggregateStore store, TimeProvide
         var watch = Stopwatch.StartNew();
         var classification = await store.ClassifyAsync(cancellationToken).ConfigureAwait(false);
         LogClassified(logger, classification.ServiceChanged, classification.BulkChanged, classification.NonServiceRows, classification.BulkRows, classification.ClearOuts,
-            watch.ElapsedMilliseconds);
+            classification.SweepMinutes, watch.ElapsedMilliseconds);
 
         watch.Restart();
         var builder = new AggregateBuilder(time.GetUtcNow().UtcDateTime);
@@ -75,8 +75,8 @@ public sealed partial class AggregateRefresher(AggregateStore store, TimeProvide
     }
 
     [LoggerMessage(Level = LogLevel.Information,
-        Message = "Classified for metrics: {ServiceChanged:N0} service and {BulkChanged:N0} bulk-closure changes; {NonService:N0} non-service requests, {Bulk:N0} bulk closures in {ClearOuts:N0} clear-outs ({ElapsedMs:N0} ms)")]
-    private static partial void LogClassified(ILogger logger, int serviceChanged, int bulkChanged, int nonService, int bulk, int clearOuts, long elapsedMs);
+        Message = "Classified for metrics: {ServiceChanged:N0} service and {BulkChanged:N0} bulk-closure changes; {NonService:N0} non-service requests, {Bulk:N0} bulk closures in {ClearOuts:N0} clear-out days and {Sweeps:N0} sweep minutes ({ElapsedMs:N0} ms)")]
+    private static partial void LogClassified(ILogger logger, int serviceChanged, int bulkChanged, int nonService, int bulk, int clearOuts, int sweeps, long elapsedMs);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Aggregates up to date (as of {AsOfDate:yyyy-MM-dd}); no rows changed")]
     private static partial void LogUpToDate(ILogger logger, DateOnly asOfDate);

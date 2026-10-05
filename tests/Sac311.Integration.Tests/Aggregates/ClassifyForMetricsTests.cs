@@ -8,7 +8,7 @@ using Sac311.Integration.Tests.Fakes;
 
 namespace Sac311.Integration.Tests.Aggregates;
 
-/// <summary><c>usp_classify_for_metrics</c>: the bulk-closure rule and the non-service classification (docs/metrics.md).</summary>
+/// <summary><c>usp_classify_for_metrics</c>: the clear-out label (day and sweep clauses) and the non-service classification (docs/metrics.md).</summary>
 public class ClassifyForMetricsTests(SqlServerFixture db) : DatabaseTest(db)
 {
     private static readonly DateOnly ClearOutDay = new(2026, 8, 10);
@@ -16,17 +16,20 @@ public class ClassifyForMetricsTests(SqlServerFixture db) : DatabaseTest(db)
 
     private Task<Classification> ClassifyAsync() => Worker.Get<AggregateStore>().ClassifyAsync(CancellationToken.None);
 
-    /// <summary>Writes <paramref name="count"/> requests straight into dbo.service_request.</summary>
+    /// <summary>
+    /// Writes <paramref name="count"/> requests straight into dbo.service_request, closed at 17:<paramref name="minute"/>
+    /// UTC, or spread over 17:00 to 17:29 (at most a few per minute, so no sweep) when it is null.
+    /// </summary>
     private async Task InsertAsync(
         int count, decimal? days, string group = "Parking", DateOnly? closed = null, string? level1 = null, string? level2 = "Meter",
-        DqFlags flags = DqFlags.None, string status = "Closed", string prefix = "T")
+        DqFlags flags = DqFlags.None, string status = "Closed", string prefix = "T", int? minute = null)
     {
         var day = closed ?? ClearOutDay;
-        var closedUtc = day.ToDateTime(new TimeOnly(17, 0), DateTimeKind.Utc);
-        var createdUtc = closedUtc.AddDays(-(double)(days ?? 1m));
         var rows = Enumerable.Range(0, count).Select(_ =>
         {
             var n = ++_rows;
+            var closedUtc = day.ToDateTime(new TimeOnly(17, minute ?? n % 30), DateTimeKind.Utc);
+            var createdUtc = closedUtc.AddDays(-(double)(days ?? 1m));
             return new
             {
                 Ref = string.Create(CultureInfo.InvariantCulture, $"{prefix}-{n:D6}"),
@@ -68,8 +71,10 @@ public class ClassifyForMetricsTests(SqlServerFixture db) : DatabaseTest(db)
 
         var result = await ClassifyAsync();
 
-        Assert.Equal((100, 1, 100), (result.BulkChanged, result.ClearOuts, result.BulkRows));
-        Assert.Equal(100, await CountAsync("dbo.service_request", "is_metric_eligible = 0"));
+        Assert.Equal((100, 1, 0, 100), (result.BulkChanged, result.ClearOuts, result.SweepMinutes, result.BulkRows));
+
+        // A label only: the clear-out stays in the metrics.
+        Assert.Equal(100, await CountAsync("dbo.service_request", "is_metric_eligible = 1"));
     }
 
     [Fact]
@@ -101,6 +106,53 @@ public class ClassifyForMetricsTests(SqlServerFixture db) : DatabaseTest(db)
     {
         await InsertAsync(60, 400m, group: "Parking");
         await InsertAsync(60, 400m, group: "Streets");
+
+        Assert.Equal(0, (await ClassifyAsync()).BulkRows);
+    }
+
+    [Fact]
+    public async Task Fifty_old_closures_in_one_minute_across_two_categories_are_a_sweep()
+    {
+        await InsertAsync(25, 400m, group: "Water", minute: 0);
+        await InsertAsync(25, 200m, group: "Sewer", minute: 0);
+
+        var result = await ClassifyAsync();
+
+        Assert.Equal((0, 1, 50), (result.ClearOuts, result.SweepMinutes, result.BulkRows));
+        Assert.Equal(25, await BulkAsync("category_group = 'Sewer'"));
+    }
+
+    [Fact]
+    public async Task Forty_nine_in_one_minute_are_not()
+    {
+        await InsertAsync(25, 400m, group: "Water", minute: 0);
+        await InsertAsync(24, 400m, group: "Sewer", minute: 0);
+
+        var result = await ClassifyAsync();
+
+        Assert.Equal((0, 0), (result.SweepMinutes, result.BulkRows));
+    }
+
+    [Fact]
+    public async Task A_sweep_labels_closures_over_90_days_in_its_minute_only()
+    {
+        await InsertAsync(50, 400m, group: "Water", minute: 0);
+        await InsertAsync(1, 120m, group: "Sewer", minute: 0, prefix: "MID");
+        await InsertAsync(1, 30m, group: "Sewer", minute: 0, prefix: "YOUNG");
+        await InsertAsync(1, 400m, group: "Sewer", minute: 1, prefix: "NEXT");
+
+        await ClassifyAsync();
+
+        Assert.Equal(51, await BulkAsync());
+        Assert.Equal(1, await BulkAsync("reference_number LIKE 'MID-%'"));
+        Assert.Equal(0, await BulkAsync("(reference_number LIKE 'YOUNG-%' OR reference_number LIKE 'NEXT-%')"));
+    }
+
+    [Fact]
+    public async Task The_same_minute_on_another_day_does_not_combine()
+    {
+        await InsertAsync(25, 400m, group: "Water", minute: 5);
+        await InsertAsync(25, 400m, group: "Sewer", closed: ClearOutDay.AddDays(1), minute: 5);
 
         Assert.Equal(0, (await ClassifyAsync()).BulkRows);
     }
@@ -197,11 +249,15 @@ public class ClassifyForMetricsTests(SqlServerFixture db) : DatabaseTest(db)
 
     private sealed record ExclusionCheck(short WindowDays, string Period, string Kind, string CategoryGroup, string Label, DateTime? Day, int Opened, int Closed, int Open, decimal? AvgAgeDays);
 
+    private sealed record ClearOutCheck(DateTime Day, string CategoryGroup, int Closed, decimal AvgAgeDays, int MinutesSpanned, bool IsSweep, string? SweepCategories);
+
     [Fact]
-    public async Task A_refresh_leaves_out_non_service_and_bulk_closures_and_reports_them_with_counts()
+    public async Task A_refresh_counts_clear_outs_leaves_out_non_service_and_reports_both_with_counts()
     {
         var today = Pacific.ToLocalDate(NowUtc);
         await InsertAsync(100, 400m, closed: today.AddDays(-3), prefix: "BULK");
+        await InsertAsync(30, 300m, group: "Water", closed: today.AddDays(-5), minute: 45, prefix: "SWEEPW");
+        await InsertAsync(25, 200m, group: "Sewer", closed: today.AddDays(-5), minute: 45, prefix: "SWEEPS");
         await InsertAsync(10, 3m, group: "Streets", closed: today.AddDays(-2), prefix: "OK");
         await InsertAsync(1, 2m, group: "Streets", closed: today.AddDays(-4), flags: DqFlags.FutureDate, prefix: "DATE");
         await InsertAsync(2, 0.01m, level1: "Other", level2: "Information", group: "Other", closed: today.AddDays(-1), prefix: "INFO");
@@ -210,10 +266,11 @@ public class ClassifyForMetricsTests(SqlServerFixture db) : DatabaseTest(db)
 
         await Worker.Get<Sac311.Ingestion.AggregateRefresher>().RefreshAsync(null, CancellationToken.None);
 
-        // Headline cells: 11 service requests opened, 10 timed closures; 101 left out of timing, 100 of them bulk; nothing non-service anywhere.
+        // Headline cells: 11 service requests opened; 165 timed closures (10 after 3 days, 155 in clear-outs, so the median
+        // is 400); only the date problem is left out of timing; nothing non-service anywhere.
         var all = await Db.QueryAsync<(int Opened, int Closed, int Excluded, int Bulk, decimal Median)>(
             "SELECT opened_count, closed_count, excluded_count, bulk_closed_count, median_days FROM agg.stats_window WHERE window_days = 30 AND period = 'current' AND neighborhood_slug = '' AND district_number = 0 AND category_group = '';");
-        Assert.Equal((11, 10, 101, 100, 3m), (all[0].Opened, all[0].Closed, all[0].Excluded, all[0].Bulk, all[0].Median));
+        Assert.Equal((11, 165, 1, 155, 400m), (all[0].Opened, all[0].Closed, all[0].Excluded, all[0].Bulk, all[0].Median));
         Assert.Equal(0, await CountAsync("agg.stats_window", "category_group IN ('Other', 'Process/Unclassified')"));
         Assert.Equal(0, await CountAsync("agg.open_backlog"));
         Assert.Equal(0, await CountAsync("agg.backlog_daily", "category_group IN ('Other', 'Process/Unclassified')"));
@@ -226,7 +283,6 @@ public class ClassifyForMetricsTests(SqlServerFixture db) : DatabaseTest(db)
             """);
         Assert.Equal(
             [
-                new ExclusionCheck(30, "current", "bulk_day", "Parking", "", today.AddDays(-3).ToDateTime(TimeOnly.MinValue), 0, 100, 0, 400m),
                 new ExclusionCheck(30, "current", "dq_flag", "", "FutureDate", null, 0, 1, 0, null),
                 new ExclusionCheck(30, "current", "non_service", "Other", "Other", null, 2, 2, 0, null),
                 new ExclusionCheck(30, "current", "non_service", "Parking", "Parking / General", null, 1, 1, 0, null),
@@ -234,6 +290,21 @@ public class ClassifyForMetricsTests(SqlServerFixture db) : DatabaseTest(db)
                 new ExclusionCheck(0, "now", "non_service", "Process/Unclassified", "Review", null, 0, 0, 1, null),
             ],
             rows.OrderBy(r => r.Period, StringComparer.Ordinal).ThenBy(r => r.Kind, StringComparer.Ordinal).ThenBy(r => r.Label, StringComparer.Ordinal));
+
+        // The notes: the Parking day spread over 17:00–17:29, and the Water/Sewer sweep in one minute.
+        var clearOuts = await Db.QueryAsync<ClearOutCheck>(
+            """
+            SELECT day AS Day, category_group AS CategoryGroup, closed_count AS Closed, avg_age_days AS AvgAgeDays,
+                   minutes_spanned AS MinutesSpanned, is_sweep AS IsSweep, sweep_categories AS SweepCategories
+            FROM agg.clear_out ORDER BY day, category_group;
+            """);
+        Assert.Equal(
+            [
+                new ClearOutCheck(today.AddDays(-5).ToDateTime(TimeOnly.MinValue), "Sewer", 25, 200m, 1, true, "Water"),
+                new ClearOutCheck(today.AddDays(-5).ToDateTime(TimeOnly.MinValue), "Water", 30, 300m, 1, true, "Sewer"),
+                new ClearOutCheck(today.AddDays(-3).ToDateTime(TimeOnly.MinValue), "Parking", 100, 400m, 30, false, null),
+            ],
+            clearOuts);
     }
 
     [Fact]

@@ -1,6 +1,6 @@
 -- Publishes a refresh: replaces the agg tables with the stg.agg_* rows the worker just bulk-copied (and
--- usp_build_exclusions just wrote), and records the refresh, in one transaction, so the API sees either the old set
--- or the new one. Empties the staging tables after.
+-- usp_build_exclusions and usp_build_clear_outs just wrote), and records the refresh, in one transaction, so the API
+-- sees either the old set or the new one. Empties the staging tables after.
 -- Result set: the new refresh_id.
 CREATE OR ALTER PROCEDURE dbo.usp_refresh_aggregates
     @run_id        bigint = NULL,
@@ -41,6 +41,11 @@ BEGIN
     SELECT window_days, period, kind, category_group, label, day, reason, opened_count, closed_count, open_count, avg_age_days
     FROM stg.agg_exclusion;
 
+    TRUNCATE TABLE agg.clear_out;
+    INSERT INTO agg.clear_out (day, category_group, closed_count, avg_age_days, minutes_spanned, is_sweep, sweep_categories)
+    SELECT day, category_group, closed_count, avg_age_days, minutes_spanned, is_sweep, sweep_categories
+    FROM stg.agg_clear_out;
+
     INSERT INTO agg.refresh (run_id, as_of_utc, as_of_date, request_count, build_ms)
     OUTPUT inserted.refresh_id INTO @refresh
     VALUES (@run_id, @as_of_utc, @as_of_date, @request_count, @build_ms);
@@ -51,6 +56,7 @@ BEGIN
     TRUNCATE TABLE stg.agg_open_backlog;
     TRUNCATE TABLE stg.agg_backlog_daily;
     TRUNCATE TABLE stg.agg_exclusion;
+    TRUNCATE TABLE stg.agg_clear_out;
 
     SELECT refresh_id FROM @refresh;
 END

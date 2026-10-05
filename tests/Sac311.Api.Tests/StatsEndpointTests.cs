@@ -79,15 +79,17 @@ public class StatsEndpointTests(SeededApi api) : IClassFixture<SeededApi>
     {
         var body = await GetAsync<CategorySummaryResponse>("/api/categories/summary?window=30");
 
-        // All 35 closed in the window: 1..30 plus 1, 2, 3, 7, 10. The 18th value is 13; p90 at 30.6: 26 + 0.6 = 26.6.
-        Assert.Equal((35, 13m, 26.6m), (body.Total.Current.Closed, body.Total.Current.MedianDays, body.Total.Current.P90Days));
-        // Prior: 30 × 2 days plus 100: median 2, so +550%.
-        Assert.Equal(new TrendResult(Trend.Slower, 550.0m), body.Total.Trend);
-        // The clear-out: 100 Parking closures out of timing but counted as bulk-closed; the non-service groups aren't listed.
-        Assert.Equal((101, 100), (body.Total.Current.Excluded, body.Total.Current.BulkClosed));
+        // All 135 closed in the window, counted as recorded: 1..30 plus 1, 2, 3, 7, 10, plus the clear-out's 100 × 200 days.
+        // The 68th value and the p90 (at 120.6) are both in the clear-out: 200.
+        Assert.Equal((135, 200m, 200m), (body.Total.Current.Closed, body.Total.Current.MedianDays, body.Total.Current.P90Days));
+        // Prior: 30 × 2 days plus 100: median 2, so (200 − 2) / 2 = +9900%.
+        Assert.Equal(new TrendResult(Trend.Slower, 9900.0m), body.Total.Trend);
+        // Only the date problem is out of timing; the clear-out is counted, and bulkClosed says how much of it there is.
+        // The non-service groups aren't listed.
+        Assert.Equal((1, 100), (body.Total.Current.Excluded, body.Total.Current.BulkClosed));
         Assert.Equal(["Parking", "Solid Waste", "Streets", "Water"], body.Categories.Select(c => c.Category).Order(StringComparer.Ordinal));
         var parking = body.Categories.Single(c => c.Category == "Parking").Stats.Current;
-        Assert.Equal((0, 0, 100, 100, (decimal?)null), (parking.Opened, parking.Closed, parking.Excluded, parking.BulkClosed, parking.MedianDays));
+        Assert.Equal((0, 100, 0, 100, (decimal?)200m), (parking.Opened, parking.Closed, parking.Excluded, parking.BulkClosed, parking.MedianDays));
         Assert.Equal(7m, body.Categories.Single(c => c.Category == "Water").Stats.Current.MedianDays);
         // Ordered by requests opened in the current period.
         Assert.Equal("Solid Waste", body.Categories[0].Category);

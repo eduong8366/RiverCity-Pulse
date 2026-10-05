@@ -29,7 +29,7 @@ public partial class SeedConsistencyTests
     [Fact]
     public void Is_metric_eligible_uses_the_metric_exclusion_mask()
     {
-        var migration = File.ReadAllText(Repo.Path("db", "migrations", "0011_metric_exclusions.sql"));
+        var migration = File.ReadAllText(Repo.Path("db", "migrations", "0012_clear_out_notes.sql"));
         Assert.Contains($"dq_flags & {(int)DqFlags.MetricExclusions} = 0", migration, StringComparison.Ordinal);
     }
 

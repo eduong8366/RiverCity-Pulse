@@ -15,8 +15,9 @@ public sealed record AggregateRefresh(int RefreshId, long? RunId, DateTime AsOfU
 /// <summary>What <see cref="AggregateStore.ClassifyAsync"/> changed, and the totals after it.</summary>
 /// <param name="ServiceChanged">Requests whose <c>is_service</c> flipped.</param>
 /// <param name="BulkChanged">Requests whose bulk-closure flag was set or cleared.</param>
-/// <param name="ClearOuts">(Day, category) groups that are clear-outs.</param>
-public sealed record Classification(int ServiceChanged, int BulkChanged, int ClearOuts, int NonServiceRows, int BulkRows);
+/// <param name="ClearOuts">(Day, category) groups that are clear-outs by the day clause.</param>
+/// <param name="SweepMinutes">Closed minutes that are clear-outs by the sweep clause.</param>
+public sealed record Classification(int ServiceChanged, int BulkChanged, int ClearOuts, int SweepMinutes, int NonServiceRows, int BulkRows);
 
 /// <summary>Reads what the aggregates are computed from, and publishes them to the <c>agg</c> tables.</summary>
 public sealed class AggregateStore(Sac311Db db)
@@ -55,8 +56,8 @@ public sealed class AggregateStore(Sac311Db db)
     }
 
     /// <summary>
-    /// Runs <c>usp_classify_for_metrics</c> with <see cref="BulkClosureRule"/>: sets <c>is_service</c> and the
-    /// <see cref="DqFlags.BulkClosure"/> bit from the ref maps and the current closures. Run before reading for a refresh.
+    /// Runs <c>usp_classify_for_metrics</c> with <see cref="BulkClosureRule"/>: sets <c>is_service</c> from the ref maps and
+    /// the <see cref="DqFlags.BulkClosure"/> label from the current closures. Run before reading for a refresh.
     /// </summary>
     public async Task<Classification> ClassifyAsync(CancellationToken cancellationToken)
     {
@@ -68,6 +69,7 @@ public sealed class AggregateStore(Sac311Db db)
                 bulk_flag = (int)DqFlags.BulkClosure,
                 date_problems = (int)DqFlags.DateProblems,
                 min_count = BulkClosureRule.MinCount,
+                sweep_min_count = BulkClosureRule.SweepMinCount,
                 detect_age_days = BulkClosureRule.DetectAgeDays,
                 member_age_days = BulkClosureRule.MemberAgeDays,
             },
@@ -77,8 +79,8 @@ public sealed class AggregateStore(Sac311Db db)
     }
 
     /// <summary>
-    /// Bulk-copies <paramref name="set"/> into the <c>stg.agg_*</c> tables and builds the exclusion breakdown with
-    /// <c>usp_build_exclusions</c>, then <c>usp_refresh_aggregates</c> swaps them into the <c>agg</c> tables in one
+    /// Bulk-copies <paramref name="set"/> into the <c>stg.agg_*</c> tables, builds the exclusion breakdown and the
+    /// clear-out notes with <c>usp_build_exclusions</c> and <c>usp_build_clear_outs</c>, then <c>usp_refresh_aggregates</c> swaps them into the <c>agg</c> tables in one
     /// transaction. Callers hold the ingest lock, so no other refresh shares staging. Returns the new <c>agg.refresh</c> id.
     /// </summary>
     public async Task<int> PublishAsync(AggregateSet set, long? runId, int buildMs, CancellationToken cancellationToken)
@@ -111,8 +113,20 @@ public sealed class AggregateStore(Sac311Db db)
             {
                 as_of_date = set.AsOfDate.ToDateTime(TimeOnly.MinValue),
                 windows = string.Join(',', AggregateBuilder.Windows),
-                bulk_flag = (int)DqFlags.BulkClosure,
                 date_problems = (int)DqFlags.DateProblems,
+            },
+            commandType: CommandType.StoredProcedure,
+            commandTimeout: 300,
+            cancellationToken: cancellationToken)).ConfigureAwait(false);
+
+        await conn.ExecuteAsync(new CommandDefinition(
+            "dbo.usp_build_clear_outs",
+            new
+            {
+                from_date = AggregateBuilder.BacklogStart.ToDateTime(TimeOnly.MinValue),
+                bulk_flag = (int)DqFlags.BulkClosure,
+                sweep_min_count = BulkClosureRule.SweepMinCount,
+                detect_age_days = BulkClosureRule.DetectAgeDays,
             },
             commandType: CommandType.StoredProcedure,
             commandTimeout: 300,

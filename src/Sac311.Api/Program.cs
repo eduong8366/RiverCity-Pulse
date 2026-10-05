@@ -16,6 +16,7 @@ builder.Services.AddSingleton<AggregateStore>();
 builder.Services.AddSingleton<StatsReader>();
 builder.Services.AddSingleton<FreshnessReader>();
 builder.Services.AddSingleton<ExclusionReader>();
+builder.Services.AddSingleton<ClearOutReader>();
 builder.Services.AddOptions<FreshnessOptions>().BindConfiguration(FreshnessOptions.SectionName);
 
 builder.Services.AddProblemDetails();

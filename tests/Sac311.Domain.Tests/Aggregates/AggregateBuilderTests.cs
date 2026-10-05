@@ -109,16 +109,18 @@ public class AggregateBuilderTests
     }
 
     [Fact]
-    public void Bulk_closures_are_excluded_and_counted_as_bulk_closed()
+    public void Bulk_closures_are_counted_as_recorded_and_as_bulk_closed()
     {
-        var bulk = Closed(3, 400m, eligible: false) with { IsBulkClosure = true };
+        var bulk = Closed(3, 400m) with { IsBulkClosure = true };
         var set = Build(Closed(1, 2m), Closed(2, 4m), bulk, Closed(5, 0m) with { ClosedLocal = null, DaysToClose = null, IsMetricEligible = false });
 
+        // 2, 4 and 400 days: the clear-out is in the median and p90; only the missing close date is excluded.
         var s = Stats(set, 30, AggregatePeriod.Current, Downtown)!;
-        Assert.Equal((2, 2, 1, 3m, 3.8m), (s.Closed, s.Excluded, s.BulkClosed, s.MedianDays, s.P90Days));
+        Assert.Equal((3, 1, 1, 4m, 320.8m), (s.Closed, s.Excluded, s.BulkClosed, s.MedianDays, s.P90Days));
         Assert.Equal(1, Stats(set, 30, AggregatePeriod.Current, Everything)!.BulkClosed);
+        Assert.Equal(0, Stats(set, 30, AggregatePeriod.Prior, Everything)?.BulkClosed ?? 0);
 
-        // A clear-out still empties the backlog: the bulk closure isn't open.
+        // A clear-out empties the backlog: the bulk closure isn't open.
         Assert.DoesNotContain(set.Open, o => o.Cell == Downtown);
     }
 
