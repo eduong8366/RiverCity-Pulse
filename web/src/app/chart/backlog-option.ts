@@ -1,6 +1,5 @@
 import type { BarSeriesOption, LineSeriesOption, ScatterSeriesOption } from 'echarts/charts';
 import type {
-  AriaComponentOption,
   AxisPointerComponentOption,
   GridComponentOption,
   LegendComponentOption,
@@ -15,7 +14,6 @@ export type BacklogOption = ComposeOption<
   | BarSeriesOption
   | LineSeriesOption
   | ScatterSeriesOption
-  | AriaComponentOption
   | AxisPointerComponentOption
   | GridComponentOption
   | LegendComponentOption
@@ -88,7 +86,6 @@ export function backlogOption(
     splitLine: { lineStyle: { color: BORDER, type: 'dashed' as const } },
   };
   return {
-    aria: { enabled: true },
     animation: false,
     textStyle: { fontFamily: 'Public Sans, system-ui, sans-serif', color: INK },
     legend: { top: 0, right: 0, textStyle: { color: MUTED } },

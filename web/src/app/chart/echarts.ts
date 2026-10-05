@@ -2,7 +2,6 @@
 // initial bundle.
 import { BarChart, LineChart, ScatterChart } from 'echarts/charts';
 import {
-  AriaComponent,
   AxisPointerComponent,
   GridComponent,
   LegendComponent,
@@ -12,7 +11,6 @@ import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 
 echarts.use([
-  AriaComponent,
   AxisPointerComponent,
   BarChart,
   CanvasRenderer,
