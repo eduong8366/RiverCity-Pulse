@@ -38,9 +38,12 @@ internal sealed record CategorySummary(string Category, CellStats Stats);
 
 internal sealed record CategorySummaryResponse(int WindowDays, int? District, CellStats Total, IReadOnlyList<CategorySummary> Categories, DateTime AsOf);
 
-/// <summary>One neighborhood on the map: its current-period figures, the trend, and its open backlog.</summary>
+/// <summary>
+/// One neighborhood on the map: its current-period figures, the trend, and its open backlog. <c>BulkClosed</c> is the part
+/// of <c>Closed</c> closed in a clear-out (counted as recorded), so the dashboard can say when one is in the figures.
+/// </summary>
 internal sealed record MapNeighborhood(
-    string Slug, string Name, int Opened, int Closed, decimal? MedianDays, decimal? P90Days, TrendResult? Trend, int OpenBacklog);
+    string Slug, string Name, int Opened, int Closed, int BulkClosed, decimal? MedianDays, decimal? P90Days, TrendResult? Trend, int OpenBacklog);
 
 internal sealed record MapResponse(int WindowDays, string? Category, int? District, IReadOnlyList<MapNeighborhood> Neighborhoods, DateTime AsOf);
 

@@ -135,7 +135,7 @@ internal static class StatsEndpoints
             {
                 var stats = CellStats.Of(c, refresh.AsOfDate, windowDays);
                 return new MapNeighborhood(
-                    c.NeighborhoodSlug, names.GetValueOrDefault(c.NeighborhoodSlug, c.NeighborhoodSlug), stats.Current.Opened, stats.Current.Closed,
+                    c.NeighborhoodSlug, names.GetValueOrDefault(c.NeighborhoodSlug, c.NeighborhoodSlug), stats.Current.Opened, stats.Current.Closed, stats.Current.BulkClosed,
                     stats.Current.MedianDays, stats.Current.P90Days, stats.Trend, stats.OpenBacklog);
             })
             .OrderBy(n => n.Name, StringComparer.Ordinal)

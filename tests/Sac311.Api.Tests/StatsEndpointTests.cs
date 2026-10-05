@@ -112,7 +112,7 @@ public class StatsEndpointTests(SeededApi api) : IClassFixture<SeededApi>
 
         Assert.Equal(["Central Oak Park", "Downtown"], body.Neighborhoods.Select(n => n.Name));
         var downtown = body.Neighborhoods.Single(n => n.Slug == "downtown");
-        Assert.Equal((7, 4, 2.5m, 7.9m, 2), (downtown.Opened, downtown.Closed, downtown.MedianDays, downtown.P90Days, downtown.OpenBacklog));
+        Assert.Equal((7, 4, 0, 2.5m, 7.9m, 2), (downtown.Opened, downtown.Closed, downtown.BulkClosed, downtown.MedianDays, downtown.P90Days, downtown.OpenBacklog));
         Assert.Equal(15.5m, body.Neighborhoods.Single(n => n.Slug == "central-oak-park").MedianDays);
     }
 
