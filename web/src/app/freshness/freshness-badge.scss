@@ -1,0 +1,26 @@
+:host {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.pill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  background: #f6e3d6;
+  color: var(--slower);
+}
+
+.pill.fresh {
+  background: #d9efeb;
+  color: var(--accent);
+}
+
+.warn {
+  color: var(--slower);
+  font-weight: 600;
+}

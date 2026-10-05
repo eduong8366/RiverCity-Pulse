@@ -1,0 +1,12 @@
+<span class="pill" [class.fresh]="fresh()" [attr.title]="explanation()">
+  {{ fresh() ? 'Fresh' : 'Stale' }}
+</span>
+<span class="detail">
+  Updated <span class="num">{{ updated() }}</span> ·
+  <span class="num">{{ requests() }}</span> requests
+  @if (issues() > 0) {
+    ·
+    <span class="warn">{{ issues() }} data-quality {{ issues() === 1 ? 'issue' : 'issues' }}</span>
+  }
+</span>
+<span class="visually-hidden">{{ explanation() }}</span>

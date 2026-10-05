@@ -18,6 +18,9 @@ describe('format', () => {
     expect(formatTrend({ direction: 'faster', medianChangePct: -12.4 }, 30)).toBe(
       '12.4% faster than the prior 30 days',
     );
+    expect(formatTrend({ direction: 'slower', medianChangePct: 24001.43 }, 90)).toBe(
+      '24,001.4% slower than the prior 90 days',
+    );
     expect(formatTrend({ direction: 'steady', medianChangePct: 2 }, 365)).toContain('Steady');
     expect(formatTrend(null, 90)).toBe('No trend: under 30 closed in a period');
   });

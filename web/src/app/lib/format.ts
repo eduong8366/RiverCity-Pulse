@@ -24,7 +24,10 @@ export function formatTrend(trend: Trend | null, windowDays: number): string {
   if (trend.direction === 'steady') {
     return `Steady (within 5% of the prior ${windowDays} days)`;
   }
-  const pct = Math.abs(trend.medianChangePct).toFixed(1);
+  const pct = Math.abs(trend.medianChangePct).toLocaleString('en-US', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
   return `${pct}% ${trend.direction} than the prior ${windowDays} days`;
 }
 

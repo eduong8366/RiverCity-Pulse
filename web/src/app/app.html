@@ -1,6 +1,11 @@
 <header class="header">
-  <h1>RiverCity Pulse</h1>
-  <p class="muted">How long Sacramento 311 service requests take to close</p>
+  <div>
+    <h1>RiverCity Pulse</h1>
+    <p class="muted">How long Sacramento 311 service requests take to close</p>
+  </div>
+  @if (data.freshness.hasValue()) {
+    <app-freshness-badge [freshness]="data.freshness.value()" />
+  }
 </header>
 
 <main class="main">
@@ -29,6 +34,14 @@
         <p class="muted">Loading…</p>
       }
     </aside>
+  </section>
+
+  <section class="card" aria-labelledby="chart-title">
+    <h2 id="chart-title" class="card-title">Requests open over time</h2>
+    @if (data.backlog.error()) {
+      <p class="error" role="alert">The backlog couldn't be loaded.</p>
+    }
+    <app-backlog-chart [points]="backlogPoints()" />
   </section>
 </main>
 

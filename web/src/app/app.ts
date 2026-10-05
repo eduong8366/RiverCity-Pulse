@@ -1,14 +1,22 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DashboardData } from './api/dashboard-data';
+import { BacklogChartComponent } from './chart/backlog-chart';
 import { FilterBarComponent } from './filters/filter-bar';
 import { FilterStore } from './filters/filter-store';
+import { FreshnessBadgeComponent } from './freshness/freshness-badge';
 import { CardContent, neighborhoodCard, summaryCard } from './map/card';
 import { NeighborhoodMapComponent } from './map/neighborhood-map';
 import { StatsCardComponent } from './map/stats-card';
 
 @Component({
   selector: 'app-root',
-  imports: [FilterBarComponent, NeighborhoodMapComponent, StatsCardComponent],
+  imports: [
+    BacklogChartComponent,
+    FilterBarComponent,
+    FreshnessBadgeComponent,
+    NeighborhoodMapComponent,
+    StatsCardComponent,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './app.scss',
   templateUrl: './app.html',
@@ -21,6 +29,10 @@ export class App {
 
   protected readonly mapNeighborhoods = computed(() =>
     this.data.map.hasValue() ? this.data.map.value().neighborhoods : [],
+  );
+
+  protected readonly backlogPoints = computed(() =>
+    this.data.backlog.hasValue() ? this.data.backlog.value().points : [],
   );
 
   /** The hovered neighborhood's figures, else the selection's total (null until the summary loads). */
