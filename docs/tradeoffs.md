@@ -112,3 +112,11 @@ Session 7b first left bulk clear-outs out of the median and p90. Hours later tha
 - **Symmetry:** the mirror case (batches of create-and-close records in a service category) was looked for with the same thresholds and not found. A note kind would be added for it by the same approach if one appeared.
 - **Not a toggle:** there is no "as recorded" switch on the dashboard. The job is to publish one definition, not to let the reader pick the friendlier number.
 
+## Dashboard: no basemap, boundaries from the API, ECharts loaded late
+
+- **No basemap under the choropleth.** The 129 neighborhood shapes carry the page on their own, and the river shows as the gap between them. A tile layer would make the page depend on a third-party service for little gain: CARTO's free tiles now need an API key, and OpenStreetMap's tile servers aren't meant for an app's traffic. Leaflet stays for zoom, hover and keyboard focus on each shape.
+- **The API serves the boundaries.** Angular only serves assets from inside `web/`, and a copy of the GeoJSON there would be a second file to keep in step. `/api/geo/neighborhoods` embeds `data/geo/sacramento-neighborhoods.geojson` at build and adds each feature's slug with the same `Neighborhood.Slug` the aggregates use. The map joins on that one key, so no slug code is ported to TypeScript.
+- **Quantile bins are computed in the browser** from the map response, interpolated like `PERCENTILE_CONT`; they reproduce the cuts in [`design/decision.md`](design/decision.md). Medians run from about 1 to 700 days, so equal-width bins would put almost every neighborhood in the first one.
+- **ECharts is loaded with `import()`** when the chart first renders. The initial bundle stays at about 100 kB transferred, and ECharts follows as a separate chunk of about 160 kB.
+- **Filters live in the URL**, updated with `replaceState`. A view can be shared, and Back leaves the page instead of undoing one click at a time.
+
