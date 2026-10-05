@@ -62,6 +62,27 @@ public sealed class DqStore(Sac311Db db)
         return (list.Find(r => r.IsRecent)?.ToCounts() ?? empty, list.Find(r => !r.IsRecent)?.ToCounts() ?? empty);
     }
 
+    /// <summary>
+    /// The <paramref name="top"/> addresses with the most requests created in (<paramref name="todayLocal"/> −
+    /// <paramref name="recentDays"/>, today], busiest first, over requests still in the source.
+    /// </summary>
+    public async Task<IReadOnlyList<(string Address, int Count)>> BusiestAddressesAsync(DateOnly todayLocal, int recentDays, int top, CancellationToken cancellationToken)
+    {
+        var today = todayLocal.ToDateTime(TimeOnly.MinValue);
+        await using var conn = await db.OpenAsync(cancellationToken).ConfigureAwait(false);
+        var rows = await conn.QueryAsync<(string, int)>(new CommandDefinition(
+            """
+            SELECT TOP (@top) address, COUNT(*)
+            FROM dbo.service_request
+            WHERE created_date_local > @recentFrom AND created_date_local <= @today AND address IS NOT NULL AND source_removed_utc IS NULL
+            GROUP BY address
+            ORDER BY COUNT(*) DESC, address;
+            """,
+            new { top, today, recentFrom = today.AddDays(-recentDays) },
+            cancellationToken: cancellationToken)).ConfigureAwait(false);
+        return rows.AsList();
+    }
+
     /// <summary>How many requests still in the source carry each of <see cref="TrackedFlags"/>, in one scan.</summary>
     public async Task<IReadOnlyDictionary<DqFlags, int>> CountFlagsAsync(CancellationToken cancellationToken)
     {

@@ -23,6 +23,9 @@ public static class DqRules
 
     public const int MinFlagJump = 50;
 
+    /// <summary>One address with at least this many new requests in <see cref="DqRunner.RecentDays"/> days is a Warn (a form default or a stuck integration, most likely).</summary>
+    public const int RepeatAddressMin = 100;
+
     public static DqResult SourceCount(long observed, decimal? recentHigh)
     {
         const string name = "source_count";
@@ -68,6 +71,22 @@ public static class DqRules
         return observed > limit
             ? new(name, DqStatus.Warn, observed, p, limit, Invariant($"{observed:N0} requests flagged {flag}, up {observed - p:N0} since the last check."))
             : new(name, DqStatus.Pass, observed, p, limit, Invariant($"{observed:N0} requests flagged {flag} ({p:N0} at the last check)."));
+    }
+
+    /// <param name="busiest">The addresses with the most requests created in the recent days, busiest first.</param>
+    public static DqResult RepeatAddress(IReadOnlyList<(string Address, int Count)> busiest)
+    {
+        ArgumentNullException.ThrowIfNull(busiest);
+        const string name = "repeat_address";
+        if (busiest.Count == 0)
+        {
+            return new(name, DqStatus.Pass, 0, null, RepeatAddressMin, "No recent requests have an address.");
+        }
+
+        var over = busiest.Where(b => b.Count >= RepeatAddressMin).ToList();
+        return over.Count > 0
+            ? new(name, DqStatus.Warn, busiest[0].Count, null, RepeatAddressMin, Invariant($"{over.Count} address(es) with {RepeatAddressMin}+ requests in {DqRunner.RecentDays} days: {string.Join("; ", over.Select(b => Invariant($"{b.Address} ({b.Count:N0})")))}."))
+            : new(name, DqStatus.Pass, busiest[0].Count, null, RepeatAddressMin, Invariant($"The busiest address had {busiest[0].Count:N0} requests in {DqRunner.RecentDays} days ({busiest[0].Address})."));
     }
 
     public static DqResult Rejects(int rejected) => rejected > 0

@@ -47,4 +47,17 @@ public class DqRulesTests
         Assert.Equal(DqStatus.Pass, DqRules.Rejects(0).Status);
         Assert.Equal(DqStatus.Warn, DqRules.Rejects(1).Status);
     }
+
+    [Fact]
+    public void Repeat_address_warns_at_100_requests_naming_the_address()
+    {
+        var warn = DqRules.RepeatAddress([("6005 WARDELL WAY", 100), ("1 MAIN ST", 99)]);
+        var pass = DqRules.RepeatAddress([("6005 WARDELL WAY", 99)]);
+
+        Assert.Equal((DqStatus.Warn, 100m), (warn.Status, warn.ObservedValue));
+        Assert.Contains("6005 WARDELL WAY (100)", warn.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("1 MAIN ST", warn.Message, StringComparison.Ordinal);
+        Assert.Equal((DqStatus.Pass, 99m), (pass.Status, pass.ObservedValue));
+        Assert.Equal(DqStatus.Pass, DqRules.RepeatAddress([]).Status);
+    }
 }

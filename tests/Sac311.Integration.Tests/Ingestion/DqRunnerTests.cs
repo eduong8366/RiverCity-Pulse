@@ -83,6 +83,28 @@ public class DqRunnerTests(SqlServerFixture db) : DatabaseTest(db)
     }
 
     [Fact]
+    public async Task One_address_with_100_new_requests_in_a_week_warns_and_99_passes()
+    {
+        FakeFeature Recent(int i, DateTime updatedUtc)
+        {
+            var f = FakeFeature.Typical(i, NowUtc);
+            f.CreatedUtc = NowUtc.AddDays(-2);
+            f.UpdatedUtc = updatedUtc;
+            f.Address = "6005 WARDELL WAY";
+            return f;
+        }
+
+        Source.Features.AddRange(Enumerable.Range(0, 99).Select(i => Recent(i, NowUtc.AddDays(-2))));
+        var at99 = (await ResultsAsync((await Worker.BackfillAsync()).RunId)).Single(r => r.CheckName == "repeat_address");
+
+        Source.Features.Add(Recent(99, NowUtc.AddMinutes(-1)));
+        var at100 = (await ResultsAsync((await Worker.IncrementalAsync()).RunId)).Single(r => r.CheckName == "repeat_address");
+
+        Assert.Equal((DqStatus.Pass, 99m), (at99.Status, at99.ObservedValue));
+        Assert.Equal((DqStatus.Warn, 100m), (at100.Status, at100.ObservedValue));
+    }
+
+    [Fact]
     public async Task Rejected_rows_warn()
     {
         Source.Seed(6, NowUtc);

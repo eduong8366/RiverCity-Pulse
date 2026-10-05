@@ -12,7 +12,8 @@ namespace Sac311.Ingestion;
 /// <list type="bullet">
 /// <item><c>source_count</c>: the source's row count against the highest count of the past 7 days; a drop of more than 2% fails.</item>
 /// <item><c>null_rate.*</c>: null rates of requests created in the last 7 days against the 90 days before; more than 5 points higher warns.</item>
-/// <item><c>flag.*</c>: how many requests carry each DQ flag (sentinel and future dates, bad close dates, unmapped values, ...); a jump warns.</item>
+/// <item><c>repeat_address</c>: one address with 100+ requests created in the last 7 days warns, naming it (a form default, most likely).</item>
+/// <item><c>flag.*</c>: how many requests carry each DQ flag (sentinel and future dates, bad close dates, unmapped values, bulk closures, ...); a jump warns.</item>
 /// <item><c>rejects</c>: rows the run rejected; any warns.</item>
 /// </list>
 /// </summary>
@@ -58,6 +59,8 @@ public sealed partial class DqRunner(ArcGisClient client, DqStore store, TimePro
         results.Add(DqRules.NullRate("category", recent.CategoryNull, recent.Rows, baseline.CategoryNull, baseline.Rows));
         results.Add(DqRules.NullRate("source", recent.SourceNull, recent.Rows, baseline.SourceNull, baseline.Rows));
         results.Add(DqRules.NullRate("neighborhood", recent.NeighborhoodNull, recent.CityRows, baseline.NeighborhoodNull, baseline.CityRows));
+
+        results.Add(DqRules.RepeatAddress(await store.BusiestAddressesAsync(Pacific.ToLocalDate(nowUtc), RecentDays, 5, cancellationToken).ConfigureAwait(false)));
 
         var flags = await store.CountFlagsAsync(cancellationToken).ConfigureAwait(false);
         var previous = await store.LatestObservedAsync("flag.", cancellationToken).ConfigureAwait(false);
