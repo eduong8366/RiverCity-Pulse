@@ -1,0 +1,69 @@
+import { httpResource } from '@angular/common/http';
+import { computed, inject, Injectable } from '@angular/core';
+import { FilterStore } from '../filters/filter-store';
+import {
+  BacklogResponse,
+  CategorySummaryResponse,
+  ClearOutsResponse,
+  ExclusionsResponse,
+  FreshnessResponse,
+  MapResponse,
+  NeighborhoodBoundaries,
+} from './models';
+
+/** Query parameters with the unset filters left out (the API reads a missing one as "all"). */
+function params(values: Record<string, string | number | null>): Record<string, string | number> {
+  return Object.fromEntries(Object.entries(values).filter(([, v]) => v !== null)) as Record<
+    string,
+    string | number
+  >;
+}
+
+/** Every API response the dashboard shows, reloaded when the filters it depends on change. */
+@Injectable({ providedIn: 'root' })
+export class DashboardData {
+  private readonly filters = inject(FilterStore);
+
+  readonly freshness = httpResource<FreshnessResponse>(() => '/api/meta/freshness');
+
+  readonly boundaries = httpResource<NeighborhoodBoundaries>(() => '/api/geo/neighborhoods');
+
+  /** Category list for the filter: the service categories with requests in the last year, citywide. */
+  readonly categoryList = httpResource<CategorySummaryResponse>(() => ({
+    url: '/api/categories/summary',
+    params: { window: 365 },
+  }));
+
+  readonly categories = computed(() =>
+    (this.categoryList.hasValue() ? this.categoryList.value().categories : [])
+      .map((c) => c.category)
+      .sort((a, b) => a.localeCompare(b)),
+  );
+
+  readonly summary = httpResource<CategorySummaryResponse>(() => ({
+    url: '/api/categories/summary',
+    params: params({ window: this.filters.window(), district: this.filters.district() }),
+  }));
+
+  readonly map = httpResource<MapResponse>(() => ({
+    url: '/api/map/neighborhoods',
+    params: params({
+      window: this.filters.window(),
+      category: this.filters.category(),
+      district: this.filters.district(),
+    }),
+  }));
+
+  readonly backlog = httpResource<BacklogResponse>(() => ({
+    url: '/api/backlog',
+    params: params({ category: this.filters.category(), district: this.filters.district() }),
+  }));
+
+  readonly exclusions = httpResource<ExclusionsResponse>(() => ({
+    url: '/api/meta/exclusions',
+    params: { window: this.filters.window() },
+  }));
+
+  /** Every clear-out since 2024 (a few dozen rows); filtered by category and date on the client. */
+  readonly clearOuts = httpResource<ClearOutsResponse>(() => '/api/meta/clear-outs');
+}

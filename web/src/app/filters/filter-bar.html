@@ -1,0 +1,39 @@
+<form class="bar" aria-label="Filters" (submit)="$event.preventDefault()">
+  <fieldset class="field">
+    <legend>Window</legend>
+    <div class="segments" role="group" aria-label="Window">
+      @for (w of windows; track w) {
+        <button
+          type="button"
+          [attr.aria-pressed]="store.window() === w"
+          (click)="store.window.set(w)"
+        >
+          {{ w }} days
+        </button>
+      }
+    </div>
+  </fieldset>
+
+  <label class="field">
+    <span>Category</span>
+    <select #category (change)="onCategory(category.value)">
+      <option value="" [selected]="store.category() === null">All categories</option>
+      @for (c of categories(); track c) {
+        <option [value]="c" [selected]="store.category() === c">{{ c }}</option>
+      }
+      @if (unknownCategory(); as c) {
+        <option [value]="c" selected>{{ c }}</option>
+      }
+    </select>
+  </label>
+
+  <label class="field">
+    <span>Council district</span>
+    <select #district (change)="onDistrict(district.value)">
+      <option value="" [selected]="store.district() === null">Whole city</option>
+      @for (d of districts; track d) {
+        <option [value]="d" [selected]="store.district() === d">District {{ d }}</option>
+      }
+    </select>
+  </label>
+</form>

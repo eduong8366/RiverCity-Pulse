@@ -3,7 +3,11 @@
   <p class="muted">How long Sacramento 311 service requests take to close</p>
 </header>
 
-<main class="main"></main>
+<main class="main">
+  <section class="card" aria-label="Filters">
+    <app-filter-bar [categories]="data.categories()" />
+  </section>
+</main>
 
 <footer class="footer muted">
   <p>
