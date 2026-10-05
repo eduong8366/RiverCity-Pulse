@@ -62,6 +62,39 @@ internal sealed class FreshnessHealthCheck(FreshnessReader reader, TimeProvider 
     }
 }
 
+/// <summary>
+/// The newest finished ingestion run didn't stop on schema drift. Degraded otherwise, at once rather than after
+/// <see cref="FreshnessOptions.MaxAge"/>: drift is the one outcome a retry can't fix, since every run checks the same
+/// contract and stops. Failed runs are retried by the scheduler, so they surface through freshness instead.
+/// </summary>
+internal sealed class IngestionHealthCheck(FreshnessReader reader) : IHealthCheck
+{
+    public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
+    {
+        var last = await reader.LastFinishedRunAsync(cancellationToken).ConfigureAwait(false);
+        if (last is null)
+        {
+            return HealthCheckResult.Healthy("No ingestion run has finished yet.");
+        }
+
+        var data = new Dictionary<string, object>
+        {
+            ["runId"] = last.RunId,
+            ["pipeline"] = last.Pipeline,
+            ["status"] = last.Status,
+            ["startedUtc"] = last.StartedUtc,
+        };
+        if (last.Status != "SchemaDrift")
+        {
+            return HealthCheckResult.Healthy($"Last run {last.RunId} ({last.Pipeline}): {last.Status}.", data);
+        }
+
+        var error = await reader.RunErrorAsync(last.RunId, cancellationToken).ConfigureAwait(false);
+        return HealthCheckResult.Degraded(
+            $"Last run {last.RunId} ({last.Pipeline}) stopped on schema drift and wrote nothing. {error}".TrimEnd(), data: data);
+    }
+}
+
 /// <summary>Writes a health report as JSON: overall status, then each check's status, description and data.</summary>
 internal static class HealthResponse
 {

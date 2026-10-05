@@ -35,6 +35,14 @@ public class HealthTests(SqlServerFixture db) : IClassFixture<SqlServerFixture>,
             new { started = finishedUtc.AddMinutes(-1), finishedUtc });
     }
 
+    private async Task RunAsync(string status, DateTime startedUtc, string? error = null)
+    {
+        await using var conn = await db.OpenAsync();
+        await conn.ExecuteAsync(
+            "INSERT INTO ops.ingest_run (pipeline, status, started_utc, finished_utc, error) VALUES ('Incremental', @status, @startedUtc, @finishedUtc, @error);",
+            new { status, startedUtc, finishedUtc = status == "Running" ? (DateTime?)null : startedUtc.AddSeconds(2), error });
+    }
+
     private async Task<(HttpStatusCode Status, JsonElement Body)> ReadyAsync()
     {
         var response = await Client.GetAsync(new Uri("/api/health/ready", UriKind.Relative));
@@ -78,6 +86,48 @@ public class HealthTests(SqlServerFixture db) : IClassFixture<SqlServerFixture>,
         Assert.Equal("Degraded", body.GetProperty("status").GetString());
         Assert.Equal("Degraded", CheckStatus(body, "freshness"));
         Assert.Equal("Healthy", CheckStatus(body, "database"));
+    }
+
+    [Fact]
+    public async Task Ready_is_degraded_at_once_when_the_last_run_stopped_on_schema_drift()
+    {
+        await SucceededRunAsync(NowUtc.AddMinutes(-20));
+        await RunAsync("SchemaDrift", NowUtc.AddMinutes(-5), "Schema drift: missing PublicStatus");
+        await RunAsync("Skipped", NowUtc.AddMinutes(-3));
+        await RunAsync("Running", NowUtc.AddMinutes(-1));
+
+        var (status, body) = await ReadyAsync();
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal("Degraded", body.GetProperty("status").GetString());
+        Assert.Equal("Healthy", CheckStatus(body, "freshness"));
+        Assert.Equal("Degraded", CheckStatus(body, "ingestion"));
+        var ingestion = body.GetProperty("checks").EnumerateArray().Single(c => c.GetProperty("name").GetString() == "ingestion");
+        Assert.Contains("missing PublicStatus", ingestion.GetProperty("description").GetString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Ready_recovers_when_a_run_succeeds_after_the_drift()
+    {
+        await RunAsync("SchemaDrift", NowUtc.AddMinutes(-20), "Schema drift: missing PublicStatus");
+        await RunAsync("Failed", NowUtc.AddMinutes(-10), "boom");
+        await SucceededRunAsync(NowUtc.AddMinutes(-1));
+
+        var (_, body) = await ReadyAsync();
+
+        Assert.Equal("Healthy", body.GetProperty("status").GetString());
+        Assert.Equal("Healthy", CheckStatus(body, "ingestion"));
+    }
+
+    [Fact]
+    public async Task A_failed_run_alone_does_not_degrade_the_ingestion_check()
+    {
+        await SucceededRunAsync(NowUtc.AddMinutes(-20));
+        await RunAsync("Failed", NowUtc.AddMinutes(-5), "timeout");
+
+        var (_, body) = await ReadyAsync();
+
+        Assert.Equal("Healthy", CheckStatus(body, "ingestion"));
     }
 
     [Fact]

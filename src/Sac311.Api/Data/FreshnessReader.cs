@@ -39,6 +39,24 @@ internal sealed class FreshnessReader(Sac311Db db)
         return Utc(run);
     }
 
+    /// <summary>The newest run that finished (not skipped, not still running).</summary>
+    public async Task<RunSummary?> LastFinishedRunAsync(CancellationToken cancellationToken)
+    {
+        await using var conn = await db.OpenAsync(cancellationToken).ConfigureAwait(false);
+        var run = await conn.QuerySingleOrDefaultAsync<RunSummary>(new CommandDefinition(
+            $"SELECT TOP (1) {RunColumns} FROM ops.ingest_run WHERE status NOT IN ('Skipped', 'Running') ORDER BY run_id DESC;",
+            cancellationToken: cancellationToken)).ConfigureAwait(false);
+        return Utc(run);
+    }
+
+    /// <summary>The error recorded on a run (drift details for SchemaDrift, the exception for Failed).</summary>
+    public async Task<string?> RunErrorAsync(long runId, CancellationToken cancellationToken)
+    {
+        await using var conn = await db.OpenAsync(cancellationToken).ConfigureAwait(false);
+        return await conn.ExecuteScalarAsync<string?>(new CommandDefinition(
+            "SELECT error FROM ops.ingest_run WHERE run_id = @runId;", new { runId }, cancellationToken: cancellationToken)).ConfigureAwait(false);
+    }
+
     public async Task<DateTime?> WatermarkAsync(CancellationToken cancellationToken)
     {
         await using var conn = await db.OpenAsync(cancellationToken).ConfigureAwait(false);

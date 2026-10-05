@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
 using Sac311.Api.Data;
 using Sac311.Api.Endpoints;
@@ -18,6 +19,7 @@ builder.Services.AddSingleton<FreshnessReader>();
 builder.Services.AddSingleton<ExclusionReader>();
 builder.Services.AddSingleton<ClearOutReader>();
 builder.Services.AddOptions<FreshnessOptions>().BindConfiguration(FreshnessOptions.SectionName);
+builder.Services.AddOptions<AlertOptions>().BindConfiguration(AlertOptions.SectionName);
 
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document, _, _) =>
@@ -37,7 +39,18 @@ builder.Services.AddOutputCache(options => options.AddPolicy(CachePolicy, policy
 
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: [HealthTags.Ready])
-    .AddCheck<FreshnessHealthCheck>("freshness", tags: [HealthTags.Ready]);
+    .AddCheck<FreshnessHealthCheck>("freshness", tags: [HealthTags.Ready])
+    .AddCheck<IngestionHealthCheck>("ingestion", tags: [HealthTags.Ready]);
+
+// The freshness monitor: the readiness checks also run in the background, and a change in status is an alert.
+builder.Services.AddHttpClient(AlertPublisher.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddSingleton<IHealthCheckPublisher, AlertPublisher>();
+builder.Services.Configure<HealthCheckPublisherOptions>(options =>
+{
+    options.Delay = TimeSpan.FromSeconds(10);
+    options.Period = builder.Configuration.GetSection(AlertOptions.SectionName).Get<AlertOptions>()?.Period ?? new AlertOptions().Period;
+    options.Predicate = check => check.Tags.Contains(HealthTags.Ready);
+});
 
 var app = builder.Build();
 
@@ -53,7 +66,8 @@ app.UseSwaggerUI(options =>
 });
 app.MapGet("/", () => Results.Redirect("/swagger")).ExcludeFromDescription();
 
-// Liveness runs no checks; readiness checks the database and data freshness (Degraded when stale, still 200).
+// Liveness runs no checks; readiness checks the database, data freshness and the last run (Degraded when stale or
+// after schema drift, still 200).
 app.MapHealthChecks("/api/health/live", new HealthCheckOptions { Predicate = _ => false, ResponseWriter = HealthResponse.WriteAsync });
 app.MapHealthChecks("/api/health/ready", new HealthCheckOptions
 {
