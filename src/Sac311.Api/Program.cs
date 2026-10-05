@@ -64,6 +64,7 @@ app.MapHealthChecks("/api/health/ready", new HealthCheckOptions
 app.MapGroup("/api")
     .CacheOutput(CachePolicy)
     .MapMetaEndpoints()
-    .MapStatsEndpoints();
+    .MapStatsEndpoints()
+    .MapGeoEndpoints();
 
 await app.RunAsync();

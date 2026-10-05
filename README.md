@@ -35,8 +35,9 @@ Start it with `dotnet run --project src/Sac311.Api`. It listens on `http://local
 | `GET /api/neighborhoods` | The 129 neighborhoods and their slugs |
 | `GET /api/neighborhoods/{slug}/stats?window=&category=` | Median and p90 days to close, opened/closed/excluded counts for the current and prior period, trend, open backlog and median open age |
 | `GET /api/categories/summary?window=&district=` | The same per category group, plus the total |
-| `GET /api/map/neighborhoods?window=&category=&district=` | Current-period figures per neighborhood, for the map |
+| `GET /api/map/neighborhoods?window=&category=&district=` | Current-period figures per neighborhood (including `bulkClosed`), for the map |
 | `GET /api/backlog?from=&to=&category=&district=&grain=day\|week` | Opened, closed and open per day or week, from 2024-01-01 |
+| `GET /api/geo/neighborhoods` | The neighborhood boundaries (GeoJSON from `data/geo/`, embedded in the API) with each one's slug, for the map |
 | `GET /api/meta/freshness` | Last runs, incremental watermark, request count, aggregate as-of date, data-quality results |
 | `GET /api/meta/exclusions?window=` | Everything the figures leave out, with counts and reasons: non-service requests by type and date problems |
 | `GET /api/meta/clear-outs?from=&to=&category=` | Clear-outs of old requests since 2024-01-01 (counted in every figure as recorded), each with a generated one-sentence note, and the rule |

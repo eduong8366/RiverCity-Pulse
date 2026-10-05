@@ -10,6 +10,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Served by /api/geo/neighborhoods for the dashboard's map. -->
+    <EmbeddedResource Include="..\..\data\geo\sacramento-neighborhoods.geojson" LogicalName="sacramento-neighborhoods.geojson" Link="geo\sacramento-neighborhoods.geojson" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="Sac311.Api.Tests" />
   </ItemGroup>
 
