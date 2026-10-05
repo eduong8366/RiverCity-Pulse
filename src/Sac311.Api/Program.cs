@@ -79,6 +79,7 @@ app.MapGroup("/api")
     .CacheOutput(CachePolicy)
     .MapMetaEndpoints()
     .MapStatsEndpoints()
+    .MapTrendEndpoints()
     .MapGeoEndpoints();
 
 await app.RunAsync();

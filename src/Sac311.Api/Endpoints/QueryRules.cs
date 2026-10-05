@@ -55,4 +55,22 @@ internal static class QueryRules
 
         return match;
     }
+
+    /// <summary><c>neighborhood</c>: a slug from /api/neighborhoods (any case), or absent for all of them.</summary>
+    public static async Task<Neighborhood?> NeighborhoodAsync(string? slug, StatsReader reader, Dictionary<string, string[]> errors, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(slug))
+        {
+            return null;
+        }
+
+        var known = await reader.NeighborhoodsAsync(cancellationToken).ConfigureAwait(false);
+        var match = known.FirstOrDefault(n => string.Equals(n.Slug, slug.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (match is null)
+        {
+            errors["neighborhood"] = [$"Unknown neighborhood '{slug}'. See /api/neighborhoods."];
+        }
+
+        return match;
+    }
 }

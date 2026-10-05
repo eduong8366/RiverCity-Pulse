@@ -25,7 +25,7 @@ internal static class StatsEndpoints
 
         api.MapGet("/categories/summary", CategorySummaryAsync)
             .WithTags("Categories")
-            .WithSummary("The same figures per category group, plus the total, citywide or for one district.");
+            .WithSummary("The same figures per category group, plus the total, citywide or for one district, optionally inside one neighborhood.");
 
         api.MapGet("/map/neighborhoods", MapNeighborhoodsAsync)
             .WithTags("Map")
@@ -78,6 +78,7 @@ internal static class StatsEndpoints
     private static async Task<Results<Ok<CategorySummaryResponse>, ValidationProblem, ProblemHttpResult>> CategorySummaryAsync(
         [Description(WindowHelp)] int? window,
         [Description(DistrictHelp)] int? district,
+        [Description("Neighborhood slug from /api/neighborhoods, e.g. 'downtown'. Omit for all neighborhoods (and requests with none).")] string? neighborhood,
         StatsReader reader,
         AggregateStore store,
         CancellationToken cancellationToken)
@@ -85,6 +86,7 @@ internal static class StatsEndpoints
         var errors = new Dictionary<string, string[]>();
         var windowDays = QueryRules.Window(window, errors);
         var districtNumber = QueryRules.District(district, errors);
+        var place = await QueryRules.NeighborhoodAsync(neighborhood, reader, errors, cancellationToken).ConfigureAwait(false);
         if (errors.Count > 0)
         {
             return TypedResults.ValidationProblem(errors);
@@ -95,7 +97,7 @@ internal static class StatsEndpoints
             return NoAggregates();
         }
 
-        var cells = await reader.CellsAsync(windowDays, districtNumber, AggregateCell.All, null, cancellationToken).ConfigureAwait(false);
+        var cells = await reader.CellsAsync(windowDays, districtNumber, place?.Slug ?? AggregateCell.All, null, cancellationToken).ConfigureAwait(false);
         var total = CellStats.Of(cells.FirstOrDefault(c => c.CategoryGroup == AggregateCell.All), refresh.AsOfDate, windowDays);
         var categories = cells
             .Where(c => c.CategoryGroup != AggregateCell.All)
@@ -103,7 +105,7 @@ internal static class StatsEndpoints
             .OrderByDescending(c => c.Stats.Current.Opened)
             .ThenBy(c => c.Category, StringComparer.Ordinal)
             .ToList();
-        return TypedResults.Ok(new CategorySummaryResponse(windowDays, district, total, categories, refresh.AsOfUtc));
+        return TypedResults.Ok(new CategorySummaryResponse(windowDays, district, place, total, categories, refresh.AsOfUtc));
     }
 
     private static async Task<Results<Ok<MapResponse>, ValidationProblem, ProblemHttpResult>> MapNeighborhoodsAsync(

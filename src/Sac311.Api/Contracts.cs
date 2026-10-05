@@ -36,7 +36,8 @@ internal sealed record NeighborhoodStatsResponse(Neighborhood Neighborhood, stri
 
 internal sealed record CategorySummary(string Category, CellStats Stats);
 
-internal sealed record CategorySummaryResponse(int WindowDays, int? District, CellStats Total, IReadOnlyList<CategorySummary> Categories, DateTime AsOf);
+/// <summary>Per-category figures and their total, citywide or for one district, optionally inside one neighborhood.</summary>
+internal sealed record CategorySummaryResponse(int WindowDays, int? District, Neighborhood? Neighborhood, CellStats Total, IReadOnlyList<CategorySummary> Categories, DateTime AsOf);
 
 /// <summary>
 /// One neighborhood on the map: its current-period figures, the trend, and its open backlog. <c>BulkClosed</c> is the part
@@ -104,3 +105,16 @@ internal sealed record ClearOutNote(
 /// <param name="Closed">Requests in all the listed clear-outs.</param>
 internal sealed record ClearOutsResponse(
     DateOnly From, DateOnly To, string? Category, int Closed, IReadOnlyList<ClearOutNote> ClearOuts, ClearOutRules Rule, string Definitions, DateTime AsOf);
+
+/// <summary>
+/// A neighborhood or category whose median days to close went up against the prior period by more than the steady
+/// band. <c>DaysAdded</c> is the current median minus the prior one, which the list is ranked by.
+/// </summary>
+/// <param name="Key">The neighborhood slug, or the category group.</param>
+internal sealed record SlowerItem(string Key, string Name, PeriodStats Current, PeriodStats Prior, decimal DaysAdded, TrendResult Trend, int OpenBacklog);
+
+/// <summary>How the compared cells split: <c>NoTrend</c> had under 30 closed in a period.</summary>
+internal sealed record TrendCounts(int Slower, int Steady, int Faster, int NoTrend);
+
+internal sealed record SlowerResponse(
+    string By, int WindowDays, string? Category, int? District, TrendCounts Compared, IReadOnlyList<SlowerItem> Items, DateTime AsOf);
