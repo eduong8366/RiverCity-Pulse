@@ -54,11 +54,11 @@ Each page from the source is stored raw, cleaned in C# (pure functions in `Sac31
 | Path | Contents |
 |---|---|
 | `src/` | `Sac311.Domain`, `Sac311.Data`, `Sac311.Ingestion`, `Sac311.Worker`, `Sac311.Api` |
-| `tests/` | Domain, integration and API test projects. Integration tests run the real jobs against a throwaway SQL Server database and a WireMock.Net fake of the ArcGIS layer; API tests run the API (`WebApplicationFactory`) on a seeded throwaway database. `Sac311.Testing` holds the shared database fixture (`SAC311_TEST_SQL` picks the server; the default is the local SQL Express) |
+| `tests/` | Domain, integration, API and end-to-end test projects. Integration tests run the real jobs against a throwaway SQL Server database and a WireMock.Net fake of the ArcGIS layer; API tests run the API (`WebApplicationFactory`) on a seeded throwaway database. `Sac311.Testing` holds the shared database fixture (`SAC311_TEST_SQL` picks the server; the default is the local SQL Express). End-to-end tests (`Sac311.E2E.Tests`) drive the dashboard in headless Chromium (Playwright for .NET) over the real API and the API tests' seeded database |
 | `tools/FakeArcGis/` | The incident-drill proxy: the live layer with one field renamed on demand, plus an alert webhook sink (see [Operations](#operations)) |
 | `db/` | SQL run by `worker migrate`: `migrations/` (one-time, journaled), `programmable/` (procs, always run), `seed/` (reference data, idempotent) |
 | `docs/` | [`metrics.md`](docs/metrics.md): what every figure means, what it leaves out and why, with SQL to check it. [`tradeoffs.md`](docs/tradeoffs.md): design choices and their alternatives. [`source-profile.md`](docs/source-profile.md): measured facts about the source data and its terms of use. [`incidents/`](docs/incidents/): drill and incident write-ups. [`design/decision.md`](docs/design/decision.md): the dashboard layout decision |
-| `web/` | The Angular dashboard (`rivercity-pulse`): Leaflet map, ECharts backlog chart, "How we measure" panel |
+| `web/` | The Angular dashboard (`rivercity-pulse`): Leaflet map, neighborhood drawer, "What's getting slower" panel, ECharts backlog chart, categories table, "How we measure" panel |
 | `data/geo/` | Sacramento neighborhood boundaries (GeoJSON, WGS84), served to the map by `/api/geo/neighborhoods` |
 
 ## Run it locally
@@ -81,7 +81,7 @@ $ dotnet run --project src/Sac311.Api                   # http://localhost:5264,
 $ cd web && npm ci && npm start                         # http://localhost:4200
 ```
 
-`dotnet test Sac311.slnx` runs every .NET test against the local SQL Server (each test class creates and drops its own `Sac311_Test_<guid>` database).
+`dotnet test Sac311.slnx` runs every .NET test against the local SQL Server (each test class creates and drops its own `Sac311_Test_<guid>` database). The end-to-end tests serve the built dashboard, so run `npm ci && npm run build` in `web/` first; on first use they download Chromium for Playwright. `--filter "Category!=E2E"` leaves them out.
 
 What the worker does, verb by verb (`dotnet run --project src/Sac311.Worker -- <verb>`):
 
@@ -100,7 +100,8 @@ Start it with `dotnet run --project src/Sac311.Api`. It listens on `http://local
 |---|---|
 | `GET /api/neighborhoods` | The 129 neighborhoods and their slugs |
 | `GET /api/neighborhoods/{slug}/stats?window=&category=` | Median and p90 days to close, opened/closed/excluded counts for the current and prior period, trend, open backlog and median open age |
-| `GET /api/categories/summary?window=&district=` | The same per category group, plus the total |
+| `GET /api/categories/summary?window=&district=&neighborhood=` | The same per category group, plus the total; with `neighborhood` (a slug), inside that neighborhood |
+| `GET /api/trends/slower?by=neighborhood\|category&window=&category=&district=&limit=` | Neighborhoods (or categories) whose median got slower than the prior period, ranked by days added, with how all of them split (slower, steady, faster, too few to compare) |
 | `GET /api/map/neighborhoods?window=&category=&district=` | Current-period figures per neighborhood (including `bulkClosed`), for the map |
 | `GET /api/backlog?from=&to=&category=&district=&grain=day\|week` | Opened, closed and open per day or week, from 2024-01-01 |
 | `GET /api/geo/neighborhoods` | The neighborhood boundaries (GeoJSON from `data/geo/`, embedded in the API) with each one's slug, for the map |
@@ -164,14 +165,17 @@ $ npm start        # ng serve on http://localhost:4200, with /api proxied to htt
 The page has:
 
 - a freshness badge: Fresh when an ingestion run succeeded in the last 45 minutes, plus the last success in Sacramento time and the request count;
-- a filter bar (window 30/90/365 days, category, council district), kept in the URL so a view can be shared;
+- a filter bar (window 30/90/365 days, category, council district, neighborhood, backlog chart range), kept in the URL so a view can be shared;
 - a neighborhood map shaded by median days to close in five quantile bins (neighborhoods with under 30 closed requests are grey), with a card showing the hovered neighborhood's figures, or the whole selection's;
-- the weekly backlog chart from 2024-01-01;
+- a neighborhood drawer, opened by clicking a neighborhood (or Enter on it, or picking it in the filter bar): its figures against the prior period, what's open now and how old, and the same by category;
+- "What's getting slower": the neighborhoods (or categories) whose median rose most against the prior period, ranked by days added, each with how many of its closures were in clear-outs;
+- the backlog chart: weekly from 2024-01-01, the last 12 months weekly, or the last 90 days daily;
+- a categories table with every figure per category group, sortable by any column; a name filters the page to that category;
 - a "How we measure" panel listing every exclusion with its count and reason and every clear-out note, linked to [`docs/metrics.md`](docs/metrics.md).
 
 Clear-outs are also marked on the chart in their week, and a card whose figures include one says how many of its closed requests were in a clear-out. There is no "as recorded" switch: the page shows one definition and publishes what it leaves out.
 
-CI runs `npm run lint`, `npm test -- --watch=false` (Vitest) and `npm run build`. The map has no basemap; [`docs/tradeoffs.md`](docs/tradeoffs.md) explains why.
+CI runs `npm run lint`, `npm test -- --watch=false` (Vitest) and `npm run build`, and an `e2e` job runs the Playwright tests against the built app. The map has no basemap; [`docs/tradeoffs.md`](docs/tradeoffs.md) explains why.
 
 Filtered to Streets in council district 4 over 365 days (`/?window=365&category=Streets&district=4`): the map greys out the rest of the city, the card notes the one Streets clear-out in the period, and the chart shows that district's backlog.
 

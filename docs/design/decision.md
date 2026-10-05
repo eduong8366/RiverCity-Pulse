@@ -21,6 +21,7 @@ The product's main question is *where* requests are slow, and the neighborhood n
 - **`FreshnessBadgeComponent`:** "Fresh / Stale", last successful run in Pacific time and the request count, from `/api/meta/freshness`.
 - **"How we measure" panel:** every exclusion from `/api/meta/exclusions` with its count and reason, and every clear-out note from `/api/meta/clear-outs`, linked to [`metrics.md`](../metrics.md); no "as recorded" toggle (decided 2026-10-04). Notes use the API's factual sentence as is. Samples: [`sample/exclusions-90.json`](sample/exclusions-90.json), [`sample/clear-outs.json`](sample/clear-outs.json).
 - **Deferred to M6:** the "slowest neighborhoods" list (it belongs with the slower panel and the neighborhood drawer); B's KPI strip and C's category list are candidates for the categories table.
+- **Built in M6 (2026-10-04):** A's side list became the "What's getting slower" panel below the map (ranked by days added, from `/api/trends/slower`), rather than a list of the slowest neighborhoods, which the map already shows; a neighborhood drawer; C's category list became a sortable categories table under the chart.
 
 ## Visual system
 - Type: Public Sans (Google Fonts), tabular numerals for figures.

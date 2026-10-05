@@ -79,6 +79,21 @@ Express caps the buffer pool and memory grants, so the window sorts spill. Refre
 - **Fewer than 30 closed requests in either period gives a null trend.** The median of a handful of requests swings by days from one week to the next. A small neighborhood would otherwise flip between "slower" and "faster" on noise.
 - **A change under 5% is "steady".** Medians are in fractional days, so almost every pair differs a little. The band keeps "slower" for changes someone would act on. `medianChangePct` is still returned, so a client can apply its own threshold.
 
+## "What's getting slower" ranks by days added, and shows clear-outs beside it
+
+`/api/trends/slower` lists the cells whose `trend` is "slower" (the rule above), most days added to the median first.
+
+- **Days, not percent.** A median going from 0.5 to 1.5 days is +200%, and from 20 to 40 days is +100%; the second is the one a resident notices. Percent is still returned, and breaks ties.
+- **Clear-outs stay in, and each row says how many.** Clear-outs are counted as recorded ([`metrics.md`](metrics.md)), so a neighborhood where old Parking requests were closed in bulk tops the list (on 2026-10-04: Pell/Main Industrial Park, 7.9 → 704.7 days, 83 of its 129 closures in clear-outs). Leaving them out of this list alone would give it a second definition; the panel shows the count next to each row instead, and says what it may mean.
+- **The counts come with it.** `compared` says how many neighborhoods were slower, steady, faster or too small to compare, so "10 slower" can be read against "76 of 129".
+
+## The end-to-end tests run the real API, not mocked responses
+
+`Sac311.E2E.Tests` (Playwright for .NET, xUnit) starts the API on Kestrel (`WebApplicationFactory.UseKestrel`) over the same seeded database as the API tests, and serves the built Angular app from the same origin through a startup filter, as the dev proxy does in development. The browser therefore exercises the whole path: SQL, aggregates, endpoints, the app's URL state and rendering, and the hand-worked figures in the assertions are the same ones the API tests check.
+
+- **Why not Playwright's Node runner with mocked `/api` routes:** it would test the app against fixtures that can drift from the API, and add a second test runner. The project's tooling is .NET, so the browser tests are too.
+- **Cost:** the e2e job needs SQL Server, Node (to build the app) and Chromium, so it is a separate CI job, and the .NET job skips it (`Category!=E2E`). Locally `dotnet test` runs it after `npm run build` in `web/`; the host downloads Chromium on first use (`Microsoft.Playwright.Program.Main(["install", "chromium"])`, so no script).
+
 ## The API serves aggregates up to 5 minutes old
 
 Every `/api` data endpoint is cached by OutputCache for 5 minutes, varying by the full query string. The aggregates change at most once per worker run (every 15 minutes), so the cache adds at most 5 minutes of staleness and turns repeated dashboard loads into memory reads. The worker can't evict the API's cache across processes; that was judged not worth a message bus. `/api/health/*` is never cached.
