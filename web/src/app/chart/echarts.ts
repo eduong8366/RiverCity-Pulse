@@ -1,6 +1,6 @@
 // The parts of ECharts the backlog chart uses, registered once. Loaded with import() so ECharts stays out of the
 // initial bundle.
-import { BarChart, LineChart } from 'echarts/charts';
+import { BarChart, LineChart, ScatterChart } from 'echarts/charts';
 import {
   AriaComponent,
   AxisPointerComponent,
@@ -19,6 +19,7 @@ echarts.use([
   GridComponent,
   LegendComponent,
   LineChart,
+  ScatterChart,
   TooltipComponent,
 ]);
 

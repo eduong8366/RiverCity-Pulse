@@ -15,9 +15,15 @@ const downtown: CardContent = {
 };
 
 describe('StatsCardComponent', () => {
-  async function render(content: CardContent): Promise<HTMLElement> {
+  async function render(
+    content: CardContent,
+    notes: string[] = [],
+    more = 0,
+  ): Promise<HTMLElement> {
     const fixture = TestBed.createComponent(StatsCardComponent);
     fixture.componentRef.setInput('content', content);
+    fixture.componentRef.setInput('notes', notes);
+    fixture.componentRef.setInput('moreNotes', more);
     await fixture.whenStable();
     return fixture.nativeElement as HTMLElement;
   }
@@ -37,5 +43,26 @@ describe('StatsCardComponent', () => {
     const card = await render({ ...downtown, closed: 29, trend: null });
 
     expect(card.textContent).toContain('Under 30 closed: too few for a reliable median');
+  });
+
+  it('says how many closures were in a clear-out, with the notes it is given', async () => {
+    const note =
+      'On 2026-10-03, Streets closed 621 requests averaging 701 days old over 135 minutes.';
+    const card = await render(downtown, [note], 2);
+
+    const block = card.querySelector('.clear-out') as HTMLElement;
+    expect(block.textContent).toContain(
+      '1,036 of these 3,264 closed requests were closed in a clear-out of old requests, and are counted as recorded.',
+    );
+    expect(Array.from(block.querySelectorAll('li')).map((li) => li.textContent?.trim())).toEqual([
+      note,
+    ]);
+    expect(block.textContent).toContain('2 more, and the rule that finds them, under');
+  });
+
+  it('has no clear-out block when the figures include none', async () => {
+    const card = await render({ ...downtown, bulkClosed: 0 }, ['ignored']);
+
+    expect(card.querySelector('.clear-out')).toBeNull();
   });
 });

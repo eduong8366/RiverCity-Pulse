@@ -27,7 +27,11 @@
     </div>
     <aside class="hover-card" aria-live="polite">
       @if (card(); as content) {
-        <app-stats-card [content]="content" />
+        <app-stats-card
+          [content]="content"
+          [notes]="cardNotes().shown"
+          [moreNotes]="cardNotes().more"
+        />
       } @else if (data.summary.error()) {
         <p class="error" role="alert">The figures couldn't be loaded.</p>
       } @else {
@@ -41,12 +45,20 @@
     @if (data.backlog.error()) {
       <p class="error" role="alert">The backlog couldn't be loaded.</p>
     }
-    <app-backlog-chart [points]="backlogPoints()" />
+    <app-backlog-chart
+      [points]="backlogPoints()"
+      [clearOuts]="clearOuts()"
+      [district]="filters.district()"
+    />
   </section>
 
   <section class="card" aria-labelledby="measure-title">
     @if (data.exclusions.hasValue()) {
-      <app-how-we-measure [exclusions]="data.exclusions.value()" />
+      <app-how-we-measure
+        [exclusions]="data.exclusions.value()"
+        [clearOuts]="clearOuts()"
+        [category]="filters.category()"
+      />
     } @else if (data.exclusions.error()) {
       <p class="error" role="alert">The exclusions couldn't be loaded.</p>
     }

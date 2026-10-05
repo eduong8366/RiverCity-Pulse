@@ -12,7 +12,7 @@ import {
   viewChild,
 } from '@angular/core';
 import type { ECharts } from 'echarts/core';
-import { BacklogPoint } from '../api/models';
+import { BacklogPoint, ClearOutNote } from '../api/models';
 import { formatCount, formatDate } from '../lib/format';
 import { backlogOption } from './backlog-option';
 
@@ -25,6 +25,10 @@ import { backlogOption } from './backlog-option';
 })
 export class BacklogChartComponent {
   readonly points = input<readonly BacklogPoint[]>([]);
+  /** Clear-outs to mark (already filtered to the selected category). */
+  readonly clearOuts = input<readonly ClearOutNote[]>([]);
+  /** The selected council district, if any: the notes are citywide, and the readout says so. */
+  readonly district = input<number | null>(null);
 
   private readonly host = viewChild.required<ElementRef<HTMLElement>>('chart');
   private readonly chart = signal<ECharts | null>(null);
@@ -62,7 +66,9 @@ export class BacklogChartComponent {
       const chart = this.chart();
       const points = this.points();
       if (chart && points.length > 0) {
-        chart.setOption(backlogOption(points), { notMerge: true });
+        chart.setOption(backlogOption(points, this.clearOuts(), this.district()), {
+          notMerge: true,
+        });
       }
     });
   }

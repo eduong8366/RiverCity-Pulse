@@ -58,3 +58,23 @@ dd {
 .small {
   margin-top: 10px;
 }
+
+.clear-out {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.clear-out p {
+  margin: 0;
+}
+
+.clear-out ul {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+
+.clear-out li + li {
+  margin-top: 4px;
+}

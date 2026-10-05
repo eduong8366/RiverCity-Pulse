@@ -1,4 +1,4 @@
-import type { BarSeriesOption, LineSeriesOption } from 'echarts/charts';
+import type { BarSeriesOption, LineSeriesOption, ScatterSeriesOption } from 'echarts/charts';
 import type {
   AriaComponentOption,
   AxisPointerComponentOption,
@@ -7,12 +7,14 @@ import type {
   TooltipComponentOption,
 } from 'echarts/components';
 import type { ComposeOption } from 'echarts/core';
-import { BacklogPoint } from '../api/models';
+import { BacklogPoint, ClearOutNote } from '../api/models';
+import { byWeek } from '../lib/clear-outs';
 import { formatCount, formatDate } from '../lib/format';
 
 export type BacklogOption = ComposeOption<
   | BarSeriesOption
   | LineSeriesOption
+  | ScatterSeriesOption
   | AriaComponentOption
   | AxisPointerComponentOption
   | GridComponentOption
@@ -34,8 +36,16 @@ export function escapeHtml(text: string): string {
   );
 }
 
-/** The hover readout for one week. The last week is usually still running, so it says so. */
-export function weekReadout(point: BacklogPoint, isLast: boolean): string {
+/**
+ * The hover readout for one week, with the notes of any clear-outs in it. The last week is usually still running, so it
+ * says so. The notes describe citywide clear-outs, so a district view says that.
+ */
+export function weekReadout(
+  point: BacklogPoint,
+  isLast: boolean,
+  notes: readonly ClearOutNote[] = [],
+  district: number | null = null,
+): string {
   const rows = [
     ['Open at end of week', point.open],
     ['Opened', point.opened],
@@ -47,15 +57,27 @@ export function weekReadout(point: BacklogPoint, isLast: boolean): string {
     )
     .join('');
   const title = `Week of ${formatDate(point.date)}${isLast ? ' (so far)' : ''}`;
-  return `<strong>${escapeHtml(title)}</strong><table>${rows}</table>`;
+  const readout = `<strong>${escapeHtml(title)}</strong><table>${rows}</table>`;
+  if (notes.length === 0) {
+    return readout;
+  }
+  const heading = district === null ? 'Clear-outs this week' : 'Clear-outs this week (citywide)';
+  const items = notes.map((n) => `<li>${escapeHtml(n.note)}</li>`).join('');
+  return `${readout}<div class="clear-outs"><strong>${heading}</strong><ul>${items}</ul>Counted as recorded.</div>`;
 }
 
 /**
  * Weekly backlog: the open count as an area on top, opened vs closed per week as bars below, sharing one time axis and
- * one hover readout.
+ * one hover readout. Weeks with a clear-out get a marker on the open line and the clear-out's note in the readout.
  */
-export function backlogOption(points: readonly BacklogPoint[]): BacklogOption {
+export function backlogOption(
+  points: readonly BacklogPoint[],
+  clearOuts: readonly ClearOutNote[] = [],
+  district: number | null = null,
+): BacklogOption {
   const dates = points.map((p) => p.date);
+  const weeks = byWeek(clearOuts);
+  const markers = points.filter((p) => weeks.has(p.date)).map((p) => [p.date, p.open]);
   const axisLabel = {
     color: MUTED,
     // Month and year ("Aug 2026"); ECharts thins the labels to fit.
@@ -78,9 +100,12 @@ export function backlogOption(points: readonly BacklogPoint[]): BacklogOption {
     tooltip: {
       trigger: 'axis',
       confine: true,
+      extraCssText: 'max-width: 360px; white-space: normal;',
       formatter: (params) => {
         const index = (Array.isArray(params) ? params[0] : params).dataIndex;
-        return weekReadout(points[index], index === points.length - 1);
+        const point = points[index];
+        const last = index === points.length - 1;
+        return weekReadout(point, last, weeks.get(point.date), district);
       },
     },
     xAxis: [
@@ -114,6 +139,18 @@ export function backlogOption(points: readonly BacklogPoint[]): BacklogOption {
         color: ACCENT,
         lineStyle: { width: 2 },
         areaStyle: { opacity: 0.18 },
+      },
+      {
+        name: 'Clear-out',
+        type: 'scatter',
+        xAxisIndex: 0,
+        yAxisIndex: 0,
+        data: markers,
+        symbol: 'diamond',
+        symbolSize: 11,
+        color: INK,
+        itemStyle: { borderColor: '#FFFFFF', borderWidth: 1 },
+        z: 3,
       },
       {
         name: 'Opened',

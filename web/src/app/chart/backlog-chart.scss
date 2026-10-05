@@ -11,3 +11,24 @@
   font-size: 0.85rem;
   color: var(--muted);
 }
+
+// The hover readout is HTML that ECharts renders inside the chart element.
+:host ::ng-deep {
+  .clear-outs {
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+    font-size: 0.8rem;
+  }
+
+  .clear-outs ul {
+    margin: 4px 0;
+    padding-left: 16px;
+  }
+
+  td.num {
+    padding-left: 12px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+}

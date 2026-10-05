@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { ExclusionsResponse } from '../api/models';
+import { ClearOutNote, ExclusionsResponse } from '../api/models';
 import { HowWeMeasureComponent } from './how-we-measure';
 
 const info = 'Information call, answered during the call.';
@@ -65,11 +65,33 @@ const exclusions: ExclusionsResponse = {
 };
 
 describe('HowWeMeasureComponent', () => {
-  async function render(): Promise<HTMLElement> {
+  async function render(
+    clearOuts: ClearOutNote[] = [],
+    category: string | null = null,
+  ): Promise<HTMLElement> {
     const fixture = TestBed.createComponent(HowWeMeasureComponent);
     fixture.componentRef.setInput('exclusions', exclusions);
+    fixture.componentRef.setInput('clearOuts', clearOuts);
+    fixture.componentRef.setInput('category', category);
     await fixture.whenStable();
     return fixture.nativeElement as HTMLElement;
+  }
+
+  function note(date: string, category: string, closed: number): ClearOutNote {
+    return {
+      date,
+      category,
+      closed,
+      averageDaysToClose: 500,
+      minutesSpanned: 30,
+      isSweep: false,
+      sweepCategories: [],
+      note: `On ${date}, ${category} closed ${closed} requests averaging 500 days old over 30 minutes.`,
+    };
+  }
+
+  function notes(list: Element | null): string[] {
+    return Array.from(list?.querySelectorAll('li') ?? []).map((li) => li.textContent?.trim() ?? '');
   }
 
   function rows(panel: HTMLElement, table: number): string[][] {
@@ -100,5 +122,33 @@ describe('HowWeMeasureComponent', () => {
     ]);
     expect(panel.querySelector('a')?.getAttribute('href')).toBe(exclusions.definitions);
     expect(panel.textContent).toContain('Jul 7, 2026 to Oct 4, 2026');
+  });
+
+  it('lists the clear-outs in the window, with earlier ones folded away, and the rule', async () => {
+    const recent = [note('2026-10-03', 'Parking', 621), note('2026-07-07', 'Parking', 104)];
+    const earlier = note('2026-07-06', 'Parking', 300);
+    const panel = await render([...recent, earlier], 'Parking');
+
+    expect(panel.textContent).toContain(
+      'a day when one category closed 100 or more requests older than 180 days, or a minute when 50 or more',
+    );
+    expect(panel.textContent).toContain(
+      'Parking: 2 clear-outs in the last 90 days, closing 725 requests.',
+    );
+    expect(notes(panel.querySelector('.notes'))).toEqual(recent.map((n) => n.note));
+    const details = panel.querySelector('details') as HTMLDetailsElement;
+    expect(details.querySelector('summary')?.textContent).toContain(
+      'Earlier clear-outs since Jan 1, 2024 (1)',
+    );
+    expect(notes(details)).toEqual([earlier.note]);
+  });
+
+  it('says when there are no clear-outs', async () => {
+    const panel = await render([], null);
+
+    expect(panel.textContent?.replace(/\s+/g, ' ')).toContain(
+      'All categories: no clear-outs in the last 90 days.',
+    );
+    expect(panel.querySelector('details')).toBeNull();
   });
 });

@@ -28,4 +28,24 @@
     Under {{ minClosed }} closed: too few for a reliable median, so the map leaves it grey.
   </p>
 }
-<ng-content />
+
+@if (bulk(); as line) {
+  <div class="clear-out">
+    <p>{{ line }}</p>
+    @if (notes().length > 0) {
+      <ul>
+        @for (note of notes(); track note) {
+          <li>{{ note }}</li>
+        }
+      </ul>
+    }
+    <p class="small">
+      @if (moreNotes() > 0) {
+        {{ moreNotes() }} more, and the rule that finds them, under
+      } @else {
+        Every clear-out is listed under
+      }
+      <a href="#clear-outs" (click)="jump($event)">How we measure</a>.
+    </p>
+  </div>
+}
