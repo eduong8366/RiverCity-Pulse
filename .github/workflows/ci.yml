@@ -64,3 +64,32 @@ jobs:
           name: test-results
           path: TestResults
           if-no-files-found: ignore
+
+  web:
+    name: Web lint, test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      # Vitest in jsdom; the unit tests need no API or database.
+      - name: Test
+        run: npm test -- --watch=false
+
+      - name: Build
+        run: npm run build
