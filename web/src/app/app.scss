@@ -24,6 +24,8 @@
 
 .main {
   display: grid;
+  // Not the implicit auto column: that grows to the chart canvas and map and never shrinks back.
+  grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   margin-top: 16px;
 }
