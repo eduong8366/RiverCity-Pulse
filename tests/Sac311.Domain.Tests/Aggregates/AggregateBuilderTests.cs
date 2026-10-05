@@ -109,6 +109,34 @@ public class AggregateBuilderTests
     }
 
     [Fact]
+    public void Bulk_closures_are_excluded_and_counted_as_bulk_closed()
+    {
+        var bulk = Closed(3, 400m, eligible: false) with { IsBulkClosure = true };
+        var set = Build(Closed(1, 2m), Closed(2, 4m), bulk, Closed(5, 0m) with { ClosedLocal = null, DaysToClose = null, IsMetricEligible = false });
+
+        var s = Stats(set, 30, AggregatePeriod.Current, Downtown)!;
+        Assert.Equal((2, 2, 1, 3m, 3.8m), (s.Closed, s.Excluded, s.BulkClosed, s.MedianDays, s.P90Days));
+        Assert.Equal(1, Stats(set, 30, AggregatePeriod.Current, Everything)!.BulkClosed);
+
+        // A clear-out still empties the backlog: the bulk closure isn't open.
+        Assert.DoesNotContain(set.Open, o => o.Cell == Downtown);
+    }
+
+    [Fact]
+    public void Non_service_requests_are_left_out_of_every_figure_but_the_request_count()
+    {
+        var info = Closed(1, 0.01m) with { IsService = false };
+        var inbox = Open(3) with { IsService = false };
+        var set = Build(Closed(2, 4m), info, inbox);
+
+        Assert.Equal(3, set.RequestCount);
+        var s = Stats(set, 30, AggregatePeriod.Current, Everything)!;
+        Assert.Equal((1, 1, 0, 4m), (s.Opened, s.Closed, s.Excluded, s.MedianDays));
+        Assert.Empty(set.Open);
+        Assert.Equal(1, set.Backlog.Where(b => b.CategoryGroup == AggregateCell.All && b.DistrictNumber == AggregateCell.AllDistricts).Sum(b => b.Opened));
+    }
+
+    [Fact]
     public void Opened_counts_by_created_date()
     {
         var set = Build(Open(1), Open(10), Open(45), Closed(0, 50m));

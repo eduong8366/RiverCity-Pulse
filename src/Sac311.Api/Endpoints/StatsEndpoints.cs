@@ -189,7 +189,7 @@ internal static class StatsEndpoints
             first, last, weekly!.Value ? BacklogWeeks.Week : BacklogWeeks.Day, group, district, weekly.Value ? BacklogWeeks.Group(days) : days, refresh.AsOfUtc));
     }
 
-    private static ProblemHttpResult NoAggregates() => TypedResults.Problem(
+    internal static ProblemHttpResult NoAggregates() => TypedResults.Problem(
         "The aggregates haven't been computed yet. Load data with the worker's backfill, or run 'worker aggregates'.",
         statusCode: StatusCodes.Status503ServiceUnavailable,
         title: "No aggregates yet");

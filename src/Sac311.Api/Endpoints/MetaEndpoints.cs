@@ -1,8 +1,11 @@
+using System.ComponentModel;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Options;
 using Sac311.Api.Data;
 using Sac311.Api.Health;
 using Sac311.Data.Aggregates;
+using Sac311.Domain;
+using Sac311.Domain.Aggregates;
 
 namespace Sac311.Api.Endpoints;
 
@@ -13,6 +16,10 @@ internal static class MetaEndpoints
         api.MapGet("/meta/freshness", FreshnessAsync)
             .WithTags("Meta")
             .WithSummary("How current the data is: last runs, the incremental watermark, request count and data-quality results.");
+
+        api.MapGet("/meta/exclusions", ExclusionsAsync)
+            .WithTags("Meta")
+            .WithSummary("What the headline figures leave out and why: non-service requests by type, bulk closures and date problems, with counts.");
         return api;
     }
 
@@ -44,4 +51,70 @@ internal static class MetaEndpoints
             refresh?.RefreshedUtc,
             dq));
     }
+
+    private static async Task<Results<Ok<ExclusionsResponse>, ValidationProblem, ProblemHttpResult>> ExclusionsAsync(
+        [Description("Window in days: 30, 90 (default) or 365, as in the other endpoints.")] int? window,
+        ExclusionReader reader,
+        AggregateStore store,
+        CancellationToken cancellationToken)
+    {
+        var errors = new Dictionary<string, string[]>();
+        var windowDays = QueryRules.Window(window, errors);
+        if (errors.Count > 0)
+        {
+            return TypedResults.ValidationProblem(errors);
+        }
+
+        if (await store.LatestAsync(cancellationToken).ConfigureAwait(false) is not { } refresh)
+        {
+            return StatsEndpoints.NoAggregates();
+        }
+
+        var rows = await reader.RowsAsync(windowDays, cancellationToken).ConfigureAwait(false);
+        var open = rows.Where(r => r is { Period: "now", Kind: "non_service" })
+            .Select(r => new NonServiceOpen(r.CategoryGroup, r.Label, r.Reason ?? "", r.Open))
+            .OrderByDescending(t => t.Open).ThenBy(t => t.Type, StringComparer.Ordinal)
+            .ToList();
+
+        return TypedResults.Ok(new ExclusionsResponse(
+            windowDays,
+            Period(rows, AggregatePeriod.Current, refresh.AsOfDate, windowDays),
+            Period(rows, AggregatePeriod.Prior, refresh.AsOfDate, windowDays),
+            new NonServiceOpenNow(open.Sum(t => t.Open), open),
+            new BulkClosureRules(BulkClosureRule.MinCount, BulkClosureRule.DetectAgeDays, BulkClosureRule.MemberAgeDays),
+            Definitions,
+            refresh.AsOfUtc));
+    }
+
+    private static ExclusionPeriod Period(IReadOnlyList<ExclusionRow> rows, string period, DateOnly asOfDate, int windowDays)
+    {
+        var to = period == AggregatePeriod.Current ? asOfDate : asOfDate.AddDays(-windowDays);
+        var mine = rows.Where(r => r.Period == period).ToList();
+
+        var types = mine.Where(r => r.Kind == "non_service")
+            .Select(r => new NonServiceType(r.CategoryGroup, r.Label, r.Reason ?? "", r.Opened, r.Closed))
+            .OrderByDescending(t => t.Opened + t.Closed).ThenBy(t => t.Type, StringComparer.Ordinal)
+            .ToList();
+        var bulk = mine.Where(r => r.Kind == "bulk_day")
+            .Select(r => new BulkClosureDay(DateOnly.FromDateTime(r.Day!.Value), r.CategoryGroup, r.Closed, r.AvgAgeDays))
+            .ToList();
+        var dates = mine.Where(r => r.Kind == "dq_flag")
+            .Select(r => new DateProblemExclusion(r.Label, r.Reason ?? "", r.Closed))
+            .OrderByDescending(d => d.Closed).ThenBy(d => d.Flag, StringComparer.Ordinal)
+            .ToList();
+
+        return new ExclusionPeriod(
+            to.AddDays(1 - windowDays),
+            to,
+            new NonServiceSummary(types.Sum(t => t.Opened), types.Sum(t => t.Closed), types),
+            new BulkClosureSummary(
+                bulk.Sum(b => b.Closed),
+                [.. bulk.OrderByDescending(b => b.Closed).ThenByDescending(b => b.Date).Take(LargestBulkDays)]),
+            dates);
+    }
+
+    /// <summary>The public write-up of every exclusion.</summary>
+    public const string Definitions = "https://github.com/eduong8366/RiverCity-Pulse/blob/main/docs/metrics.md";
+
+    private const int LargestBulkDays = 10;
 }

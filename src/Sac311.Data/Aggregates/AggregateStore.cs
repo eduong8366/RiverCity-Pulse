@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using Dapper;
 using Microsoft.Data.SqlClient;
+using Sac311.Domain;
 using Sac311.Domain.Aggregates;
 using Sac311.Domain.Cleaners;
 
@@ -10,6 +11,12 @@ namespace Sac311.Data.Aggregates;
 
 /// <summary>One row of <c>agg.refresh</c>.</summary>
 public sealed record AggregateRefresh(int RefreshId, long? RunId, DateTime AsOfUtc, DateOnly AsOfDate, int RequestCount, int BuildMs, DateTime RefreshedUtc);
+
+/// <summary>What <see cref="AggregateStore.ClassifyAsync"/> changed, and the totals after it.</summary>
+/// <param name="ServiceChanged">Requests whose <c>is_service</c> flipped.</param>
+/// <param name="BulkChanged">Requests whose bulk-closure flag was set or cleared.</param>
+/// <param name="ClearOuts">(Day, category) groups that are clear-outs.</param>
+public sealed record Classification(int ServiceChanged, int BulkChanged, int ClearOuts, int NonServiceRows, int BulkRows);
 
 /// <summary>Reads what the aggregates are computed from, and publishes them to the <c>agg</c> tables.</summary>
 public sealed class AggregateStore(Sac311Db db)
@@ -21,11 +28,13 @@ public sealed class AggregateStore(Sac311Db db)
         await using var cmd = new SqlCommand(
             """
             SELECT neighborhood_slug, district_number, category_group, status_group, created_utc, created_date_local,
-                   closed_date_local, backlog_close_date_local, days_to_close, is_metric_eligible
+                   closed_date_local, backlog_close_date_local, days_to_close, is_metric_eligible, is_service,
+                   CAST(CASE WHEN dq_flags & @bulk <> 0 THEN 1 ELSE 0 END AS bit)
             FROM dbo.service_request
             WHERE source_removed_utc IS NULL;
             """,
             conn) { CommandTimeout = 300 };
+        cmd.Parameters.Add("@bulk", SqlDbType.Int).Value = (int)DqFlags.BulkClosure;
         await using var reader = await cmd.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
@@ -39,14 +48,38 @@ public sealed class AggregateStore(Sac311Db db)
                 reader.IsDBNull(6) ? null : reader.GetFieldValue<DateOnly>(6),
                 reader.IsDBNull(7) ? null : reader.GetFieldValue<DateOnly>(7),
                 reader.IsDBNull(8) ? null : reader.GetDecimal(8),
-                reader.GetBoolean(9));
+                reader.GetBoolean(9),
+                reader.GetBoolean(10),
+                reader.GetBoolean(11));
         }
     }
 
     /// <summary>
-    /// Bulk-copies <paramref name="set"/> into the <c>stg.agg_*</c> tables, then <c>usp_refresh_aggregates</c> swaps them
-    /// into the <c>agg</c> tables in one transaction. Callers hold the ingest lock, so no other refresh shares staging.
-    /// Returns the new <c>agg.refresh</c> id.
+    /// Runs <c>usp_classify_for_metrics</c> with <see cref="BulkClosureRule"/>: sets <c>is_service</c> and the
+    /// <see cref="DqFlags.BulkClosure"/> bit from the ref maps and the current closures. Run before reading for a refresh.
+    /// </summary>
+    public async Task<Classification> ClassifyAsync(CancellationToken cancellationToken)
+    {
+        await using var conn = await db.OpenAsync(cancellationToken).ConfigureAwait(false);
+        return await conn.QuerySingleAsync<Classification>(new CommandDefinition(
+            "dbo.usp_classify_for_metrics",
+            new
+            {
+                bulk_flag = (int)DqFlags.BulkClosure,
+                date_problems = (int)DqFlags.DateProblems,
+                min_count = BulkClosureRule.MinCount,
+                detect_age_days = BulkClosureRule.DetectAgeDays,
+                member_age_days = BulkClosureRule.MemberAgeDays,
+            },
+            commandType: CommandType.StoredProcedure,
+            commandTimeout: 300,
+            cancellationToken: cancellationToken)).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Bulk-copies <paramref name="set"/> into the <c>stg.agg_*</c> tables and builds the exclusion breakdown with
+    /// <c>usp_build_exclusions</c>, then <c>usp_refresh_aggregates</c> swaps them into the <c>agg</c> tables in one
+    /// transaction. Callers hold the ingest lock, so no other refresh shares staging. Returns the new <c>agg.refresh</c> id.
     /// </summary>
     public async Task<int> PublishAsync(AggregateSet set, long? runId, int buildMs, CancellationToken cancellationToken)
     {
@@ -71,6 +104,19 @@ public sealed class AggregateStore(Sac311Db db)
         {
             await BulkCopyAsync(conn, "stg.agg_backlog_daily", t, cancellationToken).ConfigureAwait(false);
         }
+
+        await conn.ExecuteAsync(new CommandDefinition(
+            "dbo.usp_build_exclusions",
+            new
+            {
+                as_of_date = set.AsOfDate.ToDateTime(TimeOnly.MinValue),
+                windows = string.Join(',', AggregateBuilder.Windows),
+                bulk_flag = (int)DqFlags.BulkClosure,
+                date_problems = (int)DqFlags.DateProblems,
+            },
+            commandType: CommandType.StoredProcedure,
+            commandTimeout: 300,
+            cancellationToken: cancellationToken)).ConfigureAwait(false);
 
         return await conn.ExecuteScalarAsync<int>(new CommandDefinition(
             "dbo.usp_refresh_aggregates",
@@ -142,11 +188,11 @@ public sealed class AggregateStore(Sac311Db db)
         var t = NewTable(
             ("window_days", typeof(short)), ("period", typeof(string)), ("neighborhood_slug", typeof(string)), ("district_number", typeof(byte)),
             ("category_group", typeof(string)), ("opened_count", typeof(int)), ("closed_count", typeof(int)), ("excluded_count", typeof(int)),
-            ("median_days", typeof(decimal)), ("p90_days", typeof(decimal)));
+            ("bulk_closed_count", typeof(int)), ("median_days", typeof(decimal)), ("p90_days", typeof(decimal)));
         foreach (var r in rows)
         {
             t.Rows.Add((short)r.WindowDays, r.Period, r.Cell.NeighborhoodSlug, r.Cell.DistrictNumber, r.Cell.CategoryGroup,
-                r.Opened, r.Closed, r.Excluded, (object?)r.MedianDays ?? DBNull.Value, (object?)r.P90Days ?? DBNull.Value);
+                r.Opened, r.Closed, r.Excluded, r.BulkClosed, (object?)r.MedianDays ?? DBNull.Value, (object?)r.P90Days ?? DBNull.Value);
         }
 
         return t;

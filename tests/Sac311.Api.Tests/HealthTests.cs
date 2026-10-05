@@ -115,6 +115,7 @@ public class HealthTests(SqlServerFixture db) : IClassFixture<SqlServerFixture>,
     [InlineData("/api/categories/summary")]
     [InlineData("/api/map/neighborhoods")]
     [InlineData("/api/backlog")]
+    [InlineData("/api/meta/exclusions")]
     public async Task Stats_before_the_first_refresh_are_unavailable(string url)
     {
         var response = await Client.GetAsync(new Uri(url, UriKind.Relative));

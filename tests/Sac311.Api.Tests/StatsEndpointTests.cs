@@ -31,9 +31,9 @@ public class StatsEndpointTests(SeededApi api) : IClassFixture<SeededApi>
         Assert.Equal(new Neighborhood("downtown", "Downtown"), body.Neighborhood);
         Assert.Equal(30, body.WindowDays);
         Assert.Null(body.Category);
-        Assert.Equal(new PeriodStats(new DateOnly(2026, 9, 3), Today, 7, 4, 1, 2.5m, 7.9m), body.Stats.Current);
+        Assert.Equal(new PeriodStats(new DateOnly(2026, 9, 3), Today, 7, 4, 1, 0, 2.5m, 7.9m), body.Stats.Current);
         // The prior 30 days: the one closed 40 days ago after 100 days.
-        Assert.Equal(new PeriodStats(new DateOnly(2026, 8, 4), new DateOnly(2026, 9, 2), 0, 1, 0, 100m, 100m), body.Stats.Prior);
+        Assert.Equal(new PeriodStats(new DateOnly(2026, 8, 4), new DateOnly(2026, 9, 2), 0, 1, 0, 0, 100m, 100m), body.Stats.Prior);
         // Fewer than 30 closed in each period: no trend.
         Assert.Null(body.Stats.Trend);
         // Open requests created 2 and 4 days before the as-of time.
@@ -83,7 +83,11 @@ public class StatsEndpointTests(SeededApi api) : IClassFixture<SeededApi>
         Assert.Equal((35, 13m, 26.6m), (body.Total.Current.Closed, body.Total.Current.MedianDays, body.Total.Current.P90Days));
         // Prior: 30 × 2 days plus 100: median 2, so +550%.
         Assert.Equal(new TrendResult(Trend.Slower, 550.0m), body.Total.Trend);
-        Assert.Equal(["Solid Waste", "Streets", "Water"], body.Categories.Select(c => c.Category).Order(StringComparer.Ordinal));
+        // The clear-out: 100 Parking closures out of timing but counted as bulk-closed; the non-service groups aren't listed.
+        Assert.Equal((101, 100), (body.Total.Current.Excluded, body.Total.Current.BulkClosed));
+        Assert.Equal(["Parking", "Solid Waste", "Streets", "Water"], body.Categories.Select(c => c.Category).Order(StringComparer.Ordinal));
+        var parking = body.Categories.Single(c => c.Category == "Parking").Stats.Current;
+        Assert.Equal((0, 0, 100, 100, (decimal?)null), (parking.Opened, parking.Closed, parking.Excluded, parking.BulkClosed, parking.MedianDays));
         Assert.Equal(7m, body.Categories.Single(c => c.Category == "Water").Stats.Current.MedianDays);
         // Ordered by requests opened in the current period.
         Assert.Equal("Solid Waste", body.Categories[0].Category);
@@ -147,6 +151,7 @@ public class StatsEndpointTests(SeededApi api) : IClassFixture<SeededApi>
     [Theory]
     [InlineData("/api/neighborhoods/downtown/stats?window=45", "window")]
     [InlineData("/api/neighborhoods/downtown/stats?category=nope", "category")]
+    [InlineData("/api/map/neighborhoods?category=Other", "category")]
     [InlineData("/api/categories/summary?district=9", "district")]
     [InlineData("/api/map/neighborhoods?district=0", "district")]
     [InlineData("/api/backlog?grain=month", "grain")]
@@ -199,7 +204,7 @@ public class StatsEndpointTests(SeededApi api) : IClassFixture<SeededApi>
         Assert.Equal(45, body.MaxAgeMinutes);
         Assert.Equal(("Incremental", "Succeeded", SeededApi.AsOfUtc.AddMinutes(-10)), (body.LastSuccess!.Pipeline, body.LastSuccess.Status, body.LastSuccess.FinishedUtc));
         Assert.Equal(SeededApi.AsOfUtc.AddMinutes(-30), body.WatermarkUtc);
-        Assert.Equal(69, body.RequestCount);
+        Assert.Equal(173, body.RequestCount);
         Assert.Equal(Today, body.AggregatesAsOfDate);
         Assert.Equal((1, 1, 0), (body.Dq.Pass, body.Dq.Warn, body.Dq.Fail));
         Assert.Equal("null_rate.address", Assert.Single(body.Dq.Issues).Check);

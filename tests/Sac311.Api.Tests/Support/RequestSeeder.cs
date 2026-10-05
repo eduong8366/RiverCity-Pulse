@@ -14,23 +14,25 @@ internal sealed class RequestSeeder(DateTime asOfUtc)
     private readonly List<object> _rows = [];
 
     /// <summary>A request closed <paramref name="closedDaysAgo"/> local days before the as-of date, <paramref name="days"/> after it was created.</summary>
-    public RequestSeeder Closed(string? slug, byte? district, string category, int closedDaysAgo, decimal days)
+    /// <paramref name="level1"/> and <paramref name="level2"/> are the source CategoryLevel1 and 2, which decide whether it is a
+    /// service request (<paramref name="level1"/> defaults to <paramref name="category"/>).
+    public RequestSeeder Closed(string? slug, byte? district, string category, int closedDaysAgo, decimal days, string? level1 = null, string? level2 = null)
     {
         var closed = asOfUtc.Date.AddDays(-closedDaysAgo).AddHours(19);
         var created = closed.AddDays((double)-days);
-        return Add(slug, district, category, "Closed", created, closed, Pacific.ToLocalDate(closed), days, DqFlags.None);
+        return Add(slug, district, category, "Closed", created, closed, Pacific.ToLocalDate(closed), days, DqFlags.None, level1, level2);
     }
 
     /// <summary>A Closed request with no close date (<see cref="DqFlags.ClosedMissingDate"/>): left out of the medians, counted as excluded.</summary>
     public RequestSeeder ClosedWithoutDate(string? slug, byte? district, string category, int lastUpdatedDaysAgo, int createdDaysAgo)
     {
         var left = Pacific.ToLocalDate(asOfUtc.Date.AddDays(-lastUpdatedDaysAgo).AddHours(19));
-        return Add(slug, district, category, "Closed", asOfUtc.AddDays(-createdDaysAgo), null, left, null, DqFlags.ClosedMissingDate);
+        return Add(slug, district, category, "Closed", asOfUtc.AddDays(-createdDaysAgo), null, left, null, DqFlags.ClosedMissingDate, null, null);
     }
 
     /// <summary>A request still open, created exactly <paramref name="createdDaysAgo"/> days before the as-of time.</summary>
-    public RequestSeeder Open(string? slug, byte? district, string category, int createdDaysAgo) =>
-        Add(slug, district, category, "Open", asOfUtc.AddDays(-createdDaysAgo), null, null, null, DqFlags.None);
+    public RequestSeeder Open(string? slug, byte? district, string category, int createdDaysAgo, string? level1 = null, string? level2 = null) =>
+        Add(slug, district, category, "Open", asOfUtc.AddDays(-createdDaysAgo), null, null, null, DqFlags.None, level1, level2);
 
     public async Task SaveAsync(SqlServerFixture db)
     {
@@ -38,11 +40,11 @@ internal sealed class RequestSeeder(DateTime asOfUtc)
         await conn.ExecuteAsync(
             """
             INSERT INTO dbo.service_request
-                (reference_number, object_id, category_group, source_channel, district_number, is_city, neighborhood_slug, status_group,
+                (reference_number, object_id, category_level1, category_level2, category_group, source_channel, district_number, is_city, neighborhood_slug, status_group,
                  created_utc, updated_utc, closed_utc, created_date_local, closed_date_local, backlog_close_date_local, days_to_close,
                  dq_flags, row_hash, first_seen_utc, last_seen_utc, last_changed_utc)
             VALUES
-                (@ReferenceNumber, @ObjectId, @Category, N'Phone', @District, @IsCity, @Slug, @Status,
+                (@ReferenceNumber, @ObjectId, @Level1, @Level2, @Category, N'Phone', @District, @IsCity, @Slug, @Status,
                  @CreatedUtc, @UpdatedUtc, @ClosedUtc, @CreatedLocal, @ClosedLocal, @BacklogCloseLocal, @Days,
                  @Flags, @Hash, @UpdatedUtc, @UpdatedUtc, @UpdatedUtc);
             """,
@@ -52,7 +54,7 @@ internal sealed class RequestSeeder(DateTime asOfUtc)
 
     private RequestSeeder Add(
         string? slug, byte? district, string category, string status, DateTime createdUtc, DateTime? closedUtc, DateOnly? leftBacklog, decimal? days,
-        DqFlags flags)
+        DqFlags flags, string? level1, string? level2)
     {
         var n = _rows.Count + 1;
         _rows.Add(new
@@ -60,6 +62,8 @@ internal sealed class RequestSeeder(DateTime asOfUtc)
             ReferenceNumber = string.Create(CultureInfo.InvariantCulture, $"TEST-{n:D6}"),
             ObjectId = (long)n,
             Category = category,
+            Level1 = level1 ?? category,
+            Level2 = level2,
             District = district,
             IsCity = district is null ? (bool?)null : true,
             Slug = slug,

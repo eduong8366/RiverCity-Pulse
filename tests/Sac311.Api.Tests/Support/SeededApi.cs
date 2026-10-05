@@ -11,6 +11,9 @@ namespace Sac311.Api.Tests.Support;
 /// <item>central-oak-park (district 5), Solid Waste: 30 closed in the last 30 days after 1..30 days, 30 closed in the 30 days
 /// before after 2 days each.</item>
 /// <item>outside the city (no neighborhood or district), Water: one closed 6 days ago after 7 days.</item>
+/// <item>non-service: outside the city, two "Other / Information" calls closed 1 and 2 days ago after 0.01 days and one
+/// "Review / Email Review" item open since 3 days ago; in downtown, one "Parking / General" call closed 2 days ago after 0.02 days.</item>
+/// <item>a clear-out: outside the city, 100 Parking meter requests closed 3 days ago after 200 days.</item>
 /// </list>
 /// Plus a run that succeeded 20 minutes before the API's clock, and two data-quality results (one Pass, one Warn).
 /// </summary>
@@ -37,7 +40,16 @@ public sealed class SeededApi : IAsyncLifetime, IDisposable
             .ClosedWithoutDate("downtown", 4, "Streets", 5, 8)
             .Open("downtown", 4, "Streets", 2)
             .Open("downtown", 4, "Streets", 4)
-            .Closed(null, null, "Water", 6, 7m);
+            .Closed(null, null, "Water", 6, 7m)
+            .Closed(null, null, "Other", 1, 0.01m, "Other", "Information")
+            .Closed(null, null, "Other", 2, 0.01m, "Other", "Information")
+            .Open(null, null, "Process/Unclassified", 3, "Review", "Email Review")
+            .Closed("downtown", 4, "Parking", 2, 0.02m, "Parking", "General");
+        for (var i = 0; i < 100; i++)
+        {
+            seed.Closed(null, null, "Parking", 3, 200m, "Parking", "Meter");
+        }
+
         for (var i = 0; i < 30; i++)
         {
             seed.Closed("central-oak-park", 5, "Solid Waste", i, i + 1)

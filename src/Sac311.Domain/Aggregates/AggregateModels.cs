@@ -3,6 +3,8 @@ using Sac311.Domain.Cleaners;
 namespace Sac311.Domain.Aggregates;
 
 /// <summary>One request as the aggregates read it from <c>dbo.service_request</c> (requests still in the source only).</summary>
+/// <param name="IsService">False for a non-service request (an information call, an inbox item...): left out of every figure.</param>
+/// <param name="IsBulkClosure">Closed in a clear-out (<see cref="DqFlags.BulkClosure"/>); also not metric-eligible.</param>
 public readonly record struct AggregateRequest(
     string? NeighborhoodSlug,
     byte? DistrictNumber,
@@ -13,7 +15,9 @@ public readonly record struct AggregateRequest(
     DateOnly? ClosedLocal,
     DateOnly? BacklogCloseLocal,
     decimal? DaysToClose,
-    bool IsMetricEligible);
+    bool IsMetricEligible,
+    bool IsService = true,
+    bool IsBulkClosure = false);
 
 /// <summary>
 /// One cell of the aggregate cube: a neighborhood, a council district and a category group, any of which may be "all"
@@ -38,9 +42,10 @@ public static class AggregatePeriod
 
 /// <param name="Opened">Requests created in the period.</param>
 /// <param name="Closed">Metric-eligible requests closed in the period; the median and p90 are over these.</param>
-/// <param name="Excluded">Closed requests that left the backlog in the period but are kept out of the metrics (DQ flags).</param>
+/// <param name="Excluded">Closed requests that left the backlog in the period but are kept out of the metrics (DQ flags, bulk closures included).</param>
+/// <param name="BulkClosed">The part of <paramref name="Excluded"/> closed in a clear-out (<see cref="DqFlags.BulkClosure"/>).</param>
 public sealed record WindowStats(
-    int WindowDays, string Period, AggregateCell Cell, int Opened, int Closed, int Excluded, decimal? MedianDays, decimal? P90Days);
+    int WindowDays, string Period, AggregateCell Cell, int Opened, int Closed, int Excluded, int BulkClosed, decimal? MedianDays, decimal? P90Days);
 
 /// <summary>Requests open at the as-of time, and the median of their ages in days.</summary>
 public sealed record OpenStats(AggregateCell Cell, int Open, decimal? MedianAgeDays);

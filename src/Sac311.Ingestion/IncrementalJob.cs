@@ -29,8 +29,9 @@ public sealed partial class IncrementalJob(
         await using (held.ConfigureAwait(false))
         {
             var run = await RunLockedAsync(cancellationToken).ConfigureAwait(false);
-            await dq.RunAfterAsync(run, cancellationToken).ConfigureAwait(false);
+            // Refresh before DQ: the refresh sets the bulk-closure flags that DQ counts.
             await aggregates.RefreshAfterAsync(run, cancellationToken).ConfigureAwait(false);
+            await dq.RunAfterAsync(run, cancellationToken).ConfigureAwait(false);
             return run;
         }
     }

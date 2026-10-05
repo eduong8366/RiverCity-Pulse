@@ -15,6 +15,7 @@ builder.Services.AddSingleton(sp => new Sac311Db(sp.GetRequiredService<IConfigur
 builder.Services.AddSingleton<AggregateStore>();
 builder.Services.AddSingleton<StatsReader>();
 builder.Services.AddSingleton<FreshnessReader>();
+builder.Services.AddSingleton<ExclusionReader>();
 builder.Services.AddOptions<FreshnessOptions>().BindConfiguration(FreshnessOptions.SectionName);
 
 builder.Services.AddProblemDetails();

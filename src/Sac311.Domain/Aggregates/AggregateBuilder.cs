@@ -3,10 +3,12 @@ using Sac311.Domain.Cleaners;
 namespace Sac311.Domain.Aggregates;
 
 /// <summary>
-/// Computes everything the API serves, in one pass over the requests (<see cref="Add"/>) and then <see cref="Build"/>:
+/// Computes everything the API serves, in one pass over the requests (<see cref="Add"/>) and then <see cref="Build"/>.
+/// Non-service requests (<see cref="AggregateRequest.IsService"/>) are counted in <see cref="AggregateSet.RequestCount"/>
+/// only; usp_build_exclusions reports them separately. The rest give:
 /// <list type="bullet">
 /// <item>per window (<see cref="Windows"/> days) and period (current, prior), per cell of neighborhood × district ×
-/// category (each possibly "all", so 8 grouping sets): opened, closed and excluded counts, and the median and p90 days
+/// category (each possibly "all", so 8 grouping sets): opened, closed, excluded and bulk-closed counts, and the median and p90 days
 /// to close over the metric-eligible requests closed in the period;</item>
 /// <item>per cell: the requests open at the as-of time and the median of their ages;</item>
 /// <item>per day from <see cref="BacklogStart"/>, per district × category: opened, closed and open at day's end.</item>
@@ -61,6 +63,11 @@ public sealed class AggregateBuilder
     public void Add(in AggregateRequest request)
     {
         _requests++;
+        if (!request.IsService)
+        {
+            return;
+        }
+
         var cell = new Cell(Id(request.NeighborhoodSlug, _slugIds, _slugs), request.DistrictNumber ?? NoDistrict, Id(request.CategoryGroup, _groupIds, _groups));
         var created = request.CreatedLocal?.DayNumber;
         var leftBacklog = request.BacklogCloseLocal?.DayNumber;
@@ -75,7 +82,12 @@ public sealed class AggregateBuilder
 
             if (!counted && request.Status == StatusGroup.Closed && PeriodOf(leftBacklog, Windows[w]) is { } excludedIn)
             {
-                Count(new PeriodCell(w, excludedIn, cell)).Excluded++;
+                var excluded = Count(new PeriodCell(w, excludedIn, cell));
+                excluded.Excluded++;
+                if (request.IsBulkClosure)
+                {
+                    excluded.BulkClosed++;
+                }
             }
         }
 
@@ -123,6 +135,7 @@ public sealed class AggregateBuilder
                     var total = counts.TryGetValue(key with { Cell = cell }, out var t) ? t : new Counts();
                     total.Opened += c.Opened;
                     total.Excluded += c.Excluded;
+                    total.BulkClosed += c.BulkClosed;
                     counts[key with { Cell = cell }] = total;
                 }
             }
@@ -165,7 +178,7 @@ public sealed class AggregateBuilder
             var hasValues = percentiles.TryGetValue(key, out var p);
             result.Add(new WindowStats(
                 Windows[key.Window], key.Current ? AggregatePeriod.Current : AggregatePeriod.Prior, ToCell(key.Cell),
-                c.Opened, hasValues ? p.Count : 0, c.Excluded, hasValues ? p.Median : null, hasValues ? p.P90 : null));
+                c.Opened, hasValues ? p.Count : 0, c.Excluded, c.BulkClosed, hasValues ? p.Median : null, hasValues ? p.P90 : null));
         }
 
         return result;
@@ -311,6 +324,8 @@ public sealed class AggregateBuilder
         public int Opened { get; set; }
 
         public int Excluded { get; set; }
+
+        public int BulkClosed { get; set; }
     }
 
     /// <summary>Per-day opened and closed counts from <see cref="BacklogStart"/>, plus how many were open before it.</summary>

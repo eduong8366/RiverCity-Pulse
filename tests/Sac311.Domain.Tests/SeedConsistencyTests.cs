@@ -29,7 +29,7 @@ public partial class SeedConsistencyTests
     [Fact]
     public void Is_metric_eligible_uses_the_metric_exclusion_mask()
     {
-        var migration = File.ReadAllText(Repo.Path("db", "migrations", "0005_service_request.sql"));
+        var migration = File.ReadAllText(Repo.Path("db", "migrations", "0011_metric_exclusions.sql"));
         Assert.Contains($"dq_flags & {(int)DqFlags.MetricExclusions} = 0", migration, StringComparison.Ordinal);
     }
 
@@ -41,6 +41,36 @@ public partial class SeedConsistencyTests
         var rows = MapRow().Matches(Seed(seed)).ToList();
         Assert.NotEmpty(rows);
         Assert.All(rows, m => Assert.Equal(m.Groups[1].Value, MapKey.For(Unquote(m.Groups[2].Value))));
+    }
+
+    [Fact]
+    public void Non_service_type_keys_are_the_map_keys_of_their_source_values()
+    {
+        var rows = NonServiceRow().Matches(Seed("non_service_type")).ToList();
+        var categories = MapRow().Matches(Seed("category_map")).Select(m => m.Groups[1].Value).ToHashSet();
+
+        Assert.NotEmpty(rows);
+        Assert.All(rows, m =>
+        {
+            Assert.Equal(m.Groups[1].Value, MapKey.For(Unquote(m.Groups[3].Value)));
+            Assert.Equal(m.Groups[2].Value, MapKey.For(Unquote(m.Groups[4].Value)));
+            Assert.Contains(m.Groups[1].Value, categories);
+        });
+        Assert.Equal(rows.Count, rows.Select(m => (m.Groups[1].Value, m.Groups[2].Value)).Distinct().Count());
+    }
+
+    [Fact]
+    public void Exactly_the_other_and_process_groups_are_non_service()
+    {
+        // ('key', N'Source', N'Group', NULL | N'reason' | @grouped_other)
+        var rows = CategoryServiceRow().Matches(Seed("category_map")).ToList();
+
+        Assert.Equal(27, rows.Count);
+        Assert.All(rows, m =>
+        {
+            var nonService = m.Groups[2].Value != "NULL";
+            Assert.Equal(m.Groups[1].Value is "Other" or "Process/Unclassified", nonService);
+        });
     }
 
     [Fact]
@@ -81,6 +111,14 @@ public partial class SeedConsistencyTests
     // ('key', N'Source Value', N'Group')
     [GeneratedRegex(@"^\s*\('([a-z0-9]+)',\s*N'((?:[^']|'')*)',\s*N'", RegexOptions.Multiline)]
     private static partial Regex MapRow();
+
+    // ('key', 'level2key', N'Level 1', N'Level 2', N'reason')
+    [GeneratedRegex(@"^\s*\('([a-z0-9]+)',\s*'([a-z0-9]+)',\s*N'((?:[^']|'')*)',\s*N'((?:[^']|'')*)',\s*N'", RegexOptions.Multiline)]
+    private static partial Regex NonServiceRow();
+
+    // ('key', N'Source', N'Group', <reason>): group and whether the reason is NULL
+    [GeneratedRegex(@"^\s*\('[a-z0-9]+',\s*N'(?:[^']|'')*',\s*N'((?:[^']|'')*)',\s*(NULL|N'|@)", RegexOptions.Multiline)]
+    private static partial Regex CategoryServiceRow();
 
     // ('key', N'Name', 'slug')
     [GeneratedRegex(@"^\s*\('([a-z0-9]+)',\s*N'((?:[^']|'')*)',\s*'([a-z0-9-]+)'\)", RegexOptions.Multiline)]

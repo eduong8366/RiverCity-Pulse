@@ -21,10 +21,11 @@ public sealed class ApiFactory(string connectionString, DateTime nowUtc) : WebAp
         builder.ConfigureTestServices(services => services.AddSingleton<TimeProvider>(new FixedTime(nowUtc)));
     }
 
-    /// <summary>Computes and publishes the aggregates over what is in the database, as the worker does after a run.</summary>
+    /// <summary>Classifies, computes and publishes the aggregates over what is in the database, as the worker does after a run.</summary>
     public static async Task RefreshAggregatesAsync(SqlServerFixture db, DateTime asOfUtc)
     {
         var store = new AggregateStore(new Sac311Db(db.ConnectionString));
+        await store.ClassifyAsync(CancellationToken.None);
         var builder = new AggregateBuilder(asOfUtc);
         await foreach (var request in store.ReadRequestsAsync(CancellationToken.None))
         {

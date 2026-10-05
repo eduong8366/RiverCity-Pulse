@@ -8,7 +8,7 @@ namespace Sac311.Api.Data;
 internal sealed record Neighborhood(string Slug, string Name);
 
 /// <summary>One period's row of <c>agg.stats_window</c>.</summary>
-internal sealed record PeriodRow(int Opened, int Closed, int Excluded, decimal? MedianDays, decimal? P90Days);
+internal sealed record PeriodRow(int Opened, int Closed, int Excluded, int BulkClosed, decimal? MedianDays, decimal? P90Days);
 
 /// <summary>A cell of the aggregate cube with both periods and the open backlog; missing parts had no requests.</summary>
 internal sealed record Cell(string NeighborhoodSlug, string CategoryGroup, PeriodRow? Current, PeriodRow? Prior, int OpenCount, decimal? MedianOpenAgeDays);
@@ -28,12 +28,15 @@ internal sealed class StatsReader(Sac311Db db)
         return rows.AsList();
     }
 
-    /// <summary>Every category group a request can have: the seeded groups plus <c>Unmapped</c>.</summary>
+    /// <summary>
+    /// The category groups the figures cover: seeded groups with at least one service category, plus <c>Unmapped</c>.
+    /// Groups that are entirely non-service (Other, Process/Unclassified) are left out, as they are of every figure.
+    /// </summary>
     public async Task<IReadOnlyList<string>> CategoriesAsync(CancellationToken cancellationToken)
     {
         await using var conn = await db.OpenAsync(cancellationToken).ConfigureAwait(false);
         var rows = await conn.QueryAsync<string>(new CommandDefinition(
-            "SELECT category_group FROM ref.category_map UNION SELECT N'Unmapped' ORDER BY 1;",
+            "SELECT category_group FROM ref.category_map WHERE is_service = 1 UNION SELECT N'Unmapped' ORDER BY 1;",
             cancellationToken: cancellationToken)).ConfigureAwait(false);
         return rows.AsList();
     }
@@ -57,7 +60,7 @@ internal sealed class StatsReader(Sac311Db db)
         using var results = await conn.QueryMultipleAsync(new CommandDefinition(
             $"""
             SELECT neighborhood_slug AS NeighborhoodSlug, category_group AS CategoryGroup, period AS Period, opened_count AS Opened,
-                   closed_count AS Closed, excluded_count AS Excluded, median_days AS MedianDays, p90_days AS P90Days
+                   closed_count AS Closed, excluded_count AS Excluded, bulk_closed_count AS BulkClosed, median_days AS MedianDays, p90_days AS P90Days
             FROM agg.stats_window
             WHERE window_days = @window AND {filter};
 
@@ -102,9 +105,9 @@ internal sealed class StatsReader(Sac311Db db)
     }
 
     private sealed record StatsRow(
-        string NeighborhoodSlug, string CategoryGroup, string Period, int Opened, int Closed, int Excluded, decimal? MedianDays, decimal? P90Days)
+        string NeighborhoodSlug, string CategoryGroup, string Period, int Opened, int Closed, int Excluded, int BulkClosed, decimal? MedianDays, decimal? P90Days)
     {
-        public PeriodRow ToPeriod() => new(Opened, Closed, Excluded, MedianDays, P90Days);
+        public PeriodRow ToPeriod() => new(Opened, Closed, Excluded, BulkClosed, MedianDays, P90Days);
     }
 
     private sealed record OpenRow(string NeighborhoodSlug, string CategoryGroup, int OpenCount, decimal? MedianOpenAgeDays);

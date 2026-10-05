@@ -10,7 +10,7 @@ public class AggregateRefreshTests(SqlServerFixture db) : DatabaseTest(db)
         short WindowDays, string Period, string NeighborhoodSlug, byte DistrictNumber, string CategoryGroup,
         int ClosedCount, decimal? MedianDays, decimal? P90Days, int HandCount, double? HandMedian, double? HandP90);
 
-    /// <summary>40 requests over two neighborhoods, two districts and two categories; every fifth one stays open.</summary>
+    /// <summary>40 requests over two neighborhoods, two districts and two categories, 5 of them information calls; every fifth one stays open.</summary>
     private void SeedVariedSource()
     {
         Source.Seed(40, NowUtc);
@@ -26,6 +26,13 @@ public class AggregateRefreshTests(SqlServerFixture db) : DatabaseTest(db)
             if (i % 4 == 0)
             {
                 f.CategoryLevel1 = "Solid Waste";
+            }
+
+            if (i % 7 == 6)
+            {
+                // Information calls: non-service, so in none of the figures.
+                f.CategoryLevel1 = "Other";
+                f.CategoryLevel2 = "Information";
             }
 
             if (i % 5 != 4)
@@ -59,7 +66,7 @@ public class AggregateRefreshTests(SqlServerFixture db) : DatabaseTest(db)
                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY r.days_to_close) OVER () AS med,
                        PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY r.days_to_close) OVER () AS p90
                 FROM dbo.service_request AS r
-                WHERE r.is_metric_eligible = 1 AND r.days_to_close IS NOT NULL AND r.source_removed_utc IS NULL
+                WHERE r.is_metric_eligible = 1 AND r.is_service = 1 AND r.days_to_close IS NOT NULL AND r.source_removed_utc IS NULL
                   AND (a.neighborhood_slug = '' OR r.neighborhood_slug = a.neighborhood_slug)
                   AND (a.district_number = 0 OR r.district_number = a.district_number)
                   AND (a.category_group = '' OR r.category_group = a.category_group)
@@ -80,9 +87,11 @@ public class AggregateRefreshTests(SqlServerFixture db) : DatabaseTest(db)
             }
         });
 
-        Assert.Equal(8, await Db.ScalarAsync<int>(
+        // Every fifth request is open, but request 34 is an information call.
+        Assert.Equal(5, await CountAsync("dbo.service_request", "is_service = 0"));
+        Assert.Equal(7, await Db.ScalarAsync<int>(
             "SELECT open_count FROM agg.open_backlog WHERE neighborhood_slug = '' AND district_number = 0 AND category_group = '';"));
-        Assert.Equal(8, await Db.ScalarAsync<int>(
+        Assert.Equal(7, await Db.ScalarAsync<int>(
             "SELECT TOP (1) open_count FROM agg.backlog_daily WHERE district_number = 0 AND category_group = '' ORDER BY day DESC;"));
     }
 
