@@ -91,7 +91,7 @@ What the worker does, verb by verb (`dotnet run --project src/Sac311.Worker -- <
 - `reclean` applies the current cleaners and seeds to rows already loaded. Use it after changing a cleaner or a seed such as `ref.category_map`: an unchanged source row is otherwise skipped as unchanged. It fetches the whole feed again (about 8 minutes) and rewrites only the rows whose cleaned values differ, counted in `ops.ingest_run.rows_recleaned`, with no history rows. Like the backfill, it resumes from its last page if killed (`--restart` starts over, `--max-pages N` stops early), and it ends with an aggregate refresh. Requests the source no longer serves keep their old cleaning ([`docs/tradeoffs.md`](docs/tradeoffs.md#reclean-fetch-the-feed-again-write-no-history)).
 - `dq` runs the data-quality checks (source count, null rates, DQ flag counts, rejects, one address with 100+ new requests in a week) and prints them. They also run after every successful run and are stored in `ops.dq_result`. Thresholds and baselines are explained in [`docs/tradeoffs.md`](docs/tradeoffs.md).
 - `aggregates` classifies requests for the metrics (non-service requests, and the clear-outs that get notes; see [`docs/metrics.md`](docs/metrics.md)) and recomputes the `agg` tables. This also happens after every run that changed rows, and at least once a day.
-- `verify-source` profiles the live feed into [`docs/source-profile.md`](docs/source-profile.md); `capture-fixture` saves real rows as test fixtures.
+- `verify-source` profiles the live feed into [`docs/source-profile.md`](docs/source-profile.md); `capture-fixture` saves real rows as test fixtures. `verify-source --check` is the light nightly check (see Operations): it writes nothing, and exits 0 when the field contract matches and the row count is within ±5% of the profile's, 3 when not, 1 on error.
 
 ## API
 
@@ -206,6 +206,11 @@ $ curl -s -X POST http://localhost:5280/drill/heal                         # the
 ```
 
 **CI.** [`ci.yml`](.github/workflows/ci.yml) runs on Ubuntu 26.04. It builds with warnings as errors and runs every .NET test against a SQL Server 2025 service container, lints, tests and builds the dashboard, and runs the Playwright end-to-end tests in their own job.
+
+**Nightly source check.** The health checks and alerts only run while the API is up, and nothing loads data while the worker is off, so on a laptop that is shut down nobody would notice the city changing the feed. [`live-contract.yml`](.github/workflows/live-contract.yml) runs every night on GitHub (11:23 UTC, or by hand from the Actions tab) with no database: `worker verify-source --check` fetches the layer description and one row count, checks the fields against the same contract the ingestion runs use, and compares the count with the "Row count" line in [`docs/source-profile.md`](docs/source-profile.md). A failed run sends GitHub's usual failure email. It never runs on pushes or pull requests, so a change at the city can't block a merge.
+
+- **Refresh the baseline every month or two.** The feed grows about 1,500 rows a day, about 5% in 50 days, so the check fails on growth alone after that; its log says so. Rerun `dotnet run --project src/Sac311.Worker -- verify-source` and commit `docs/source-profile.md`. A drop of more than 5% is never growth: look at the feed before the next reconcile.
+- **Keep the repository active.** GitHub disables scheduled workflows in a public repository after 60 days without activity; the monthly baseline commit also keeps the schedule alive. If it was disabled, re-enable it on the workflow's page in the Actions tab.
 
 ## Design choices
 

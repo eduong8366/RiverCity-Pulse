@@ -121,6 +121,15 @@ Every `/api` data endpoint is cached by OutputCache for 5 minutes, varying by th
 - **It alerts on changes, not on every check.** One alert when readiness changes (and one at startup if it isn't Healthy), so a drift that lasts all night sends two messages, not 600. A change of cause while still Degraded (drift, then also stale) doesn't alert again; the alert text and `/api/health/ready` list every failing check.
 - **A generic webhook, not a vendor SDK.** The alert is a JSON POST with a `text` field that Slack-style incoming webhooks display as is; the other fields (status, previous status, each check) are there for anything that parses them. With no URL configured, alerts are only logged.
 
+## The nightly source check keeps its baseline in the repo
+
+The alert monitor needs the API running and ingestion needs the worker running; on a machine that is off, a change at the source would go unnoticed until the next run. [`live-contract.yml`](../.github/workflows/live-contract.yml) runs `worker verify-source --check` on GitHub every night to cover that gap.
+
+- **Baseline in `docs/source-profile.md`, not a stored count.** The check compares the live count with the profile's "Row count" line, so the workflow needs no database, no secret and no state carried between runs (an artifact or a cache that expires, or a commit from CI). The cost is a chore: the feed grows about 1,500 rows a day, so the profile has to be rerun and committed every month or two, or the check fails on growth alone. The failure says which way the count moved, and growth past 5% names the fix.
+- **±5% here, 2% in the DQ check.** The DQ source-count check compares with a 7-day high and fails on a 2% drop, because it runs after every ingestion run against a recent baseline. This check's baseline is weeks old, so it allows normal growth and catches what matters at night: a feed that was emptied, truncated or republished, or one that suddenly gained rows.
+- **The same contract as ingestion.** It calls `SchemaContract.Check`, so it fails on exactly the drift that would stop the next run as `SchemaDrift`; added fields are logged, not failed.
+- **Only on a schedule.** A change at the city isn't a defect in a pull request, so it doesn't block merges; CI stays about the code.
+
 ## Metric classification runs before each refresh, in SQL
 
 Headline figures leave out non-service requests and requests with date problems, and clear-outs of old requests are counted but labelled for the published notes ([`metrics.md`](metrics.md)). Neither the non-service classification nor the clear-out label is decided by the per-row cleaners. `usp_classify_for_metrics` sets them at the start of every aggregate refresh instead.
