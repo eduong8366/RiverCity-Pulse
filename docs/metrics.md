@@ -70,7 +70,7 @@ Categories that aren't in the map ("Unmapped") count as service, so nothing disa
 
 Lines under 90% are not candidates, so they stay counted even when the name says "General": Animal Control / General (89%), Streets / General (88%), Facilities / General (81%), Code Enforcement / General (74% in the last 90 days) and Homeless Camp / General (72%). Solid Waste, Water and Utility Billing "General" are real work (0–0.2% within an hour).
 
-To change the list, edit `db/seed/category_map.sql` or `db/seed/non_service_type.sql` and run `worker migrate`. The next refresh reclassifies every request, with no reclean needed.
+To change the list, edit `db/seed/category_map.sql` or `db/seed/non_service_type.sql` and run `worker migrate`. The next refresh reclassifies every request, with no reclean needed. Moving a category to another group (`category_group`) is different: that value is stored on each request when it is loaded, so it needs `worker reclean`.
 
 ### 2. Date problems (out of the median and p90 only)
 

@@ -17,7 +17,7 @@ A replayed or out-of-order page can carry an older version of a request. The cha
 
 ## Raw page written before the apply transaction
 
-`raw.page` is written and committed before the page's apply transaction. If the apply fails, the payload is still on record for debugging, and the replay writes a second raw row for the same page. Pages are cheap (about 180 KB gzip), so a duplicate costs less than losing the evidence. `reclean` has to take the newest raw row per cursor.
+`raw.page` is written and committed before the page's apply transaction. If the apply fails, the payload is still on record for debugging, and the replay writes a second raw row for the same page. Pages are cheap (about 180 KB gzip), so a duplicate costs less than losing the evidence. `reclean` doesn't read these pages (see below), so duplicates never need sorting out.
 
 ## The ingest lock is a session applock on its own unpooled connection
 
@@ -43,6 +43,18 @@ Incremental runs only see rows whose `DateUpdated` moved, so they can't notice a
 - **Fetch again what looks wrong:** keys we don't have, or whose source `DateUpdated` is newer than ours, are fetched by `ReferenceNumber IN (...)` and applied like any page. This is the safety net for the incremental watermark.
 - **95% guard:** if the key count falls below 95% of the last successful reconcile's count, the run fails before it marks anything. A truncated response, a half-finished republish or a paging bug would otherwise mark hundreds of thousands of requests removed. The baseline is the last *successful* reconcile (before the first one, the cleaned table's count), so a failed run can't lower the bar for the next one. A real drop of more than 5% needs a person to look, which is the point.
 - **Cost:** about 785 key-only pages (no geometry, three fields), a few minutes once a day.
+
+## Reclean: fetch the feed again, write no history
+
+The row hash covers raw values only, so a new cleaning rule doesn't create a history row for every request. The other side of that is that a changed cleaner or seed (say, a category moved to another group in `ref.category_map`) never reaches rows already loaded: the source row is the same, so `usp_apply_batch` counts it as unchanged. `worker reclean` closes that gap.
+
+- **Fetch, not replay:** the plan was to replay `raw.page` through the current cleaners. But incremental pages are pruned after 180 days, so for most requests the only raw copy left is from the backfill, and replaying it would put old versions back. Fetching the whole feed again gives the current version of every request, and it reuses the backfill path unchanged: keyset paging, a checkpoint per page (a killed reclean resumes), the ingest lock, the run log (pipeline `Reclean`). The cost is about 785 pages, about 8 minutes on this machine, and it only runs when someone changes a rule.
+- **Reclean mode in `usp_apply_batch`:** with `@reclean = 1`, a row whose hash matches but whose cleaned columns differ (compared with `IS DISTINCT FROM`, so NULLs count) has its cleaned columns rewritten. `row_hash`, `object_id` and `last_changed_utc` stay as they are, because the source didn't change. These rows count in `ops.ingest_run.rows_recleaned`, apart from `rows_updated`, which keeps meaning "the source changed". A request edited at the source during the reclean is an ordinary update, with its history row.
+- **No history rows:** history records versions the source served. A reclean doesn't produce a new version, so it adds no history row, and older history rows keep the cleaning they were stored with.
+- **Labels are not cleaning:** the clear-out bit in `dq_flags` is set later by `usp_classify_for_metrics`, so the comparison ignores it and the update keeps it. Otherwise every clear-out row would count as recleaned on every run.
+- **Requests gone from the source keep their old cleaning.** The reclean only sees what the source serves today. Rows marked with `source_removed_utc` have no current version to clean, and they stay out of the figures anyway.
+- **Always refreshes:** a reclean ends with an aggregate refresh even when nothing changed, because a seed edit such as `ref.non_service_type` changes no cleaned row and shows only in the classification the refresh runs.
+- **Raw pages:** a finished reclean deletes the previous reclean's raw pages, keeping one full copy of the feed as it was served.
 
 ## Data-quality checks compare with their own history
 

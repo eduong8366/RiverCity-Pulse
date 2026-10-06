@@ -88,6 +88,7 @@ What the worker does, verb by verb (`dotnet run --project src/Sac311.Worker -- <
 - `backfill` loads the whole feed (`--since 30d` loads a DateUpdated slice). Rerunning is safe: unchanged rows only get their last-seen time moved, and no history rows are added. A killed backfill resumes from its last committed page on the next run. Each run is logged in `ops.ingest_run` and as JSON under `src/Sac311.Worker/logs/`.
 - `incremental` runs once: rows edited since the watermark that the backfill set, with a 60-minute overlap. With no verb, the worker runs the scheduler: an incremental at startup, then every 15 minutes (`Ingest:IncrementalInterval`). Only one ingestion job runs at a time: a second one is recorded as `Skipped` and exits with code 4. A run that finds the source's fields changed stops as `SchemaDrift` without writing and exits with code 3.
 - `reconcile` also runs daily at 03:30 Sacramento time in the scheduler (`Ingest:ReconcileTimeLocal`). It compares every ReferenceNumber the source serves with the database: requests gone from the source are marked with `source_removed_utc` (never deleted), and missing or stale ones are fetched again. If the source serves fewer than 95% of the last reconcile's keys, it stops without marking anything.
+- `reclean` applies the current cleaners and seeds to rows already loaded. Use it after changing a cleaner or a seed such as `ref.category_map`: an unchanged source row is otherwise skipped as unchanged. It fetches the whole feed again (about 8 minutes) and rewrites only the rows whose cleaned values differ, counted in `ops.ingest_run.rows_recleaned`, with no history rows. Like the backfill, it resumes from its last page if killed (`--restart` starts over, `--max-pages N` stops early), and it ends with an aggregate refresh. Requests the source no longer serves keep their old cleaning ([`docs/tradeoffs.md`](docs/tradeoffs.md#reclean-fetch-the-feed-again-write-no-history)).
 - `dq` runs the data-quality checks (source count, null rates, DQ flag counts, rejects, one address with 100+ new requests in a week) and prints them. They also run after every successful run and are stored in `ops.dq_result`. Thresholds and baselines are explained in [`docs/tradeoffs.md`](docs/tradeoffs.md).
 - `aggregates` classifies requests for the metrics (non-service requests, and the clear-outs that get notes; see [`docs/metrics.md`](docs/metrics.md)) and recomputes the `agg` tables. This also happens after every run that changed rows, and at least once a day.
 - `verify-source` profiles the live feed into [`docs/source-profile.md`](docs/source-profile.md); `capture-fixture` saves real rows as test fixtures.
@@ -204,7 +205,7 @@ $ curl -s http://localhost:5264/api/health/ready                           # Deg
 $ curl -s -X POST http://localhost:5280/drill/heal                         # then rerun the incremental
 ```
 
-**CI.** [`ci.yml`](.github/workflows/ci.yml) builds with warnings as errors and runs every .NET test against a SQL Server 2025 service container, and lints, tests and builds the dashboard.
+**CI.** [`ci.yml`](.github/workflows/ci.yml) runs on Ubuntu 26.04. It builds with warnings as errors and runs every .NET test against a SQL Server 2025 service container, lints, tests and builds the dashboard, and runs the Playwright end-to-end tests in their own job.
 
 ## Design choices
 
