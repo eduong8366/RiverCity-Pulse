@@ -76,6 +76,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<BackfillJob>();
         services.AddTransient<IncrementalJob>();
         services.AddTransient<ReconcileJob>();
+        services.AddTransient<RecleanJob>();
         return services;
     }
 }

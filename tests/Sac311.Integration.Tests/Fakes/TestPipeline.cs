@@ -49,6 +49,9 @@ internal sealed class TestPipeline : IDisposable
 
     public Task<Sac311.Data.Ingest.IngestRun> ReconcileAsync() => Get<ReconcileJob>().RunAsync(CancellationToken.None);
 
+    public Task<Sac311.Data.Ingest.IngestRun> RecleanAsync(RecleanRequest? request = null) =>
+        Get<RecleanJob>().RunAsync(request ?? new RecleanRequest(), CancellationToken.None);
+
     public void Dispose()
     {
         _services.Dispose();

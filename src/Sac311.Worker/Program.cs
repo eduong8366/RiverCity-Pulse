@@ -17,6 +17,7 @@ builder.Services.AddTransient<IVerb, VerifySourceVerb>();
 builder.Services.AddTransient<IVerb, BackfillVerb>();
 builder.Services.AddTransient<IVerb, IncrementalVerb>();
 builder.Services.AddTransient<IVerb, ReconcileVerb>();
+builder.Services.AddTransient<IVerb, RecleanVerb>();
 builder.Services.AddTransient<IVerb, DqVerb>();
 builder.Services.AddTransient<IVerb, AggregatesVerb>();
 if (verbName == "run")
