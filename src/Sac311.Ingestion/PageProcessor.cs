@@ -48,11 +48,11 @@ public sealed partial class PageProcessor(PageWriter writer, TimeProvider time, 
             cancellationToken).ConfigureAwait(false);
 
         var counts = await writer.ApplyAsync(runId, rows, rejects, checkpoint, page.Features.Count, pipeline == Pipeline.Reclean, cancellationToken).ConfigureAwait(false);
-        LogPage(logger, page.LastObjectId, page.Features.Count, counts.Inserted, counts.Updated, counts.Unchanged, rejects.Count, (long)page.Elapsed.TotalMilliseconds);
+        LogPage(logger, page.LastObjectId, page.Features.Count, counts.Inserted, counts.Updated, counts.Recleaned, counts.Unchanged, rejects.Count, (long)page.Elapsed.TotalMilliseconds);
         return new PageResult(counts, rejects.Count, maxUpdated);
     }
 
     [LoggerMessage(Level = LogLevel.Information,
-        Message = "Page to OBJECTID {LastObjectId}: {Fetched} fetched, {Inserted} inserted, {Updated} updated, {Unchanged} unchanged, {Rejected} rejected ({HttpMs} ms)")]
-    private static partial void LogPage(ILogger logger, long lastObjectId, int fetched, int inserted, int updated, int unchanged, int rejected, long httpMs);
+        Message = "Page to OBJECTID {LastObjectId}: {Fetched} fetched, {Inserted} inserted, {Updated} updated, {Recleaned} recleaned, {Unchanged} unchanged, {Rejected} rejected ({HttpMs} ms)")]
+    private static partial void LogPage(ILogger logger, long lastObjectId, int fetched, int inserted, int updated, int recleaned, int unchanged, int rejected, long httpMs);
 }
