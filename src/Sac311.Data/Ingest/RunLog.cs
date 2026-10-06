@@ -39,6 +39,7 @@ public sealed class IngestRun
     public int? SourceCount { get; init; }
     public int RowsRemoved { get; init; }
     public int RowsRestored { get; init; }
+    public int RowsRecleaned { get; init; }
     public DateTime? WatermarkFromUtc { get; init; }
     public DateTime? WatermarkToUtc { get; init; }
     public string? Error { get; init; }
@@ -139,7 +140,7 @@ public sealed class RunLog(Sac311Db db)
         SELECT run_id AS RunId, pipeline AS Pipeline, status AS Status, started_utc AS StartedUtc, finished_utc AS FinishedUtc,
                duration_ms AS DurationMs, rows_fetched AS RowsFetched, rows_inserted AS RowsInserted, rows_updated AS RowsUpdated,
                rows_unchanged AS RowsUnchanged, rows_rejected AS RowsRejected, rows_history AS RowsHistory,
-               source_count AS SourceCount, rows_removed AS RowsRemoved, rows_restored AS RowsRestored,
+               source_count AS SourceCount, rows_removed AS RowsRemoved, rows_restored AS RowsRestored, rows_recleaned AS RowsRecleaned,
                watermark_from_utc AS WatermarkFromUtc, watermark_to_utc AS WatermarkToUtc, error AS Error
         FROM ops.ingest_run
         WHERE run_id = @runId;

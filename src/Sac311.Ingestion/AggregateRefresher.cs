@@ -19,7 +19,13 @@ public sealed partial class AggregateRefresher(AggregateStore store, TimeProvide
     /// Refreshes after <paramref name="run"/> when it succeeded and either changed rows or the aggregates are from an
     /// earlier day. A failed refresh is logged, never thrown: the run itself is done, and the next one tries again.
     /// </summary>
-    public async Task RefreshAfterAsync(IngestRun run, CancellationToken cancellationToken)
+    public Task RefreshAfterAsync(IngestRun run, CancellationToken cancellationToken) => RefreshAfterAsync(run, always: false, cancellationToken);
+
+    /// <param name="always">
+    /// Refresh after any successful run, changed rows or not. A reclean passes it: a seed edit such as
+    /// <c>ref.non_service_type</c> changes no cleaned row and shows only in the classification the refresh runs.
+    /// </param>
+    public async Task RefreshAfterAsync(IngestRun run, bool always, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(run);
         if (run.Status != RunStatus.Succeeded)
@@ -29,9 +35,9 @@ public sealed partial class AggregateRefresher(AggregateStore store, TimeProvide
 
         try
         {
-            var changed = run.RowsInserted + run.RowsUpdated + run.RowsRemoved + run.RowsRestored;
+            var changed = run.RowsInserted + run.RowsUpdated + run.RowsRemoved + run.RowsRestored + run.RowsRecleaned;
             var latest = await store.LatestAsync(cancellationToken).ConfigureAwait(false);
-            if (!IsDue(changed, latest?.AsOfDate, Pacific.ToLocalDate(time.GetUtcNow().UtcDateTime)))
+            if (!always && !IsDue(changed, latest?.AsOfDate, Pacific.ToLocalDate(time.GetUtcNow().UtcDateTime)))
             {
                 LogUpToDate(logger, latest!.AsOfDate);
                 return;

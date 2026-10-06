@@ -14,14 +14,14 @@ public sealed record RawPage(long RunId, string Pipeline, string WhereClause, lo
 public sealed record IngestReject(long? ObjectId, string? ReferenceNumber, string Reason, string RawJson);
 
 /// <summary>What <c>usp_apply_batch</c> did with one page.</summary>
-public sealed record BatchCounts(int Inserted, int Updated, int Unchanged, int History, int Duplicates);
+public sealed record BatchCounts(int Inserted, int Updated, int Unchanged, int History, int Duplicates, int Recleaned);
 
 /// <summary>Writes one page: the raw payload first, then the cleaned rows, rejects, checkpoint and run counters in one transaction.</summary>
 public sealed class PageWriter(Sac311Db db)
 {
     /// <summary>
-    /// Stores the payload gzip-compressed with its SHA-256, so <c>reclean</c> can rebuild the cleaned tables without
-    /// the source. It commits on its own: a page that fails to apply is still on record.
+    /// Stores the payload gzip-compressed with its SHA-256, a record of exactly what the source served. It commits on
+    /// its own: a page that fails to apply is still on record.
     /// </summary>
     public async Task<long> SaveRawAsync(RawPage page, CancellationToken cancellationToken)
     {
@@ -48,10 +48,11 @@ public sealed class PageWriter(Sac311Db db)
     /// <summary>
     /// In one transaction: reload <c>stg.request</c> with the page (SqlBulkCopy), run <c>usp_apply_batch</c>, record the
     /// rejects, move the checkpoint (when one is given) and add to the run's counters. A crash before the commit leaves
-    /// nothing behind, and the next run replays the page from the old checkpoint.
+    /// nothing behind, and the next run replays the page from the old checkpoint. With <paramref name="reclean"/>, rows
+    /// whose source version is unchanged but whose cleaned values differ are rewritten too (<c>worker reclean</c>).
     /// </summary>
     public async Task<BatchCounts> ApplyAsync(
-        long runId, IReadOnlyList<CleanedRequest> rows, IReadOnlyList<IngestReject> rejects, Checkpoint? checkpoint, int fetched,
+        long runId, IReadOnlyList<CleanedRequest> rows, IReadOnlyList<IngestReject> rejects, Checkpoint? checkpoint, int fetched, bool reclean,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(rows);
@@ -63,7 +64,7 @@ public sealed class PageWriter(Sac311Db db)
         await conn.ExecuteAsync(new CommandDefinition("TRUNCATE TABLE stg.request;", transaction: tx, cancellationToken: cancellationToken))
             .ConfigureAwait(false);
 
-        var counts = new BatchCounts(0, 0, 0, 0, 0);
+        var counts = new BatchCounts(0, 0, 0, 0, 0, 0);
         if (rows.Count > 0)
         {
             using var bulk = new SqlBulkCopy(conn, SqlBulkCopyOptions.CheckConstraints, tx) { DestinationTableName = "stg.request", BatchSize = 0 };
@@ -75,7 +76,7 @@ public sealed class PageWriter(Sac311Db db)
 
             await bulk.WriteToServerAsync(table, cancellationToken).ConfigureAwait(false);
             counts = await conn.QuerySingleAsync<BatchCounts>(new CommandDefinition(
-                "dbo.usp_apply_batch", new { run_id = runId }, tx, commandType: CommandType.StoredProcedure, cancellationToken: cancellationToken))
+                "dbo.usp_apply_batch", new { run_id = runId, reclean, label_flags = (int)DqFlags.BulkClosure }, tx, commandType: CommandType.StoredProcedure, cancellationToken: cancellationToken))
                 .ConfigureAwait(false);
         }
 
@@ -100,10 +101,10 @@ public sealed class PageWriter(Sac311Db db)
             """
             UPDATE ops.ingest_run
             SET rows_fetched += @fetched, rows_inserted += @Inserted, rows_updated += @Updated,
-                rows_unchanged += @Unchanged, rows_history += @History, rows_rejected += @rejected
+                rows_unchanged += @Unchanged, rows_history += @History, rows_rejected += @rejected, rows_recleaned += @Recleaned
             WHERE run_id = @runId;
             """,
-            new { runId, fetched, counts.Inserted, counts.Updated, counts.Unchanged, counts.History, rejected = rejects.Count },
+            new { runId, fetched, counts.Inserted, counts.Updated, counts.Unchanged, counts.History, rejected = rejects.Count, counts.Recleaned },
             tx, cancellationToken: cancellationToken)).ConfigureAwait(false);
 
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);

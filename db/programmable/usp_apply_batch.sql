@@ -3,15 +3,20 @@
 -- entirely or not at all, and replaying a page changes nothing.
 -- Separate UPDATE and INSERT statements instead of MERGE: MERGE has a history of bugs, the applock already makes
 -- this the only writer, and separate statements give exact counts (see docs/tradeoffs.md).
+-- @reclean = 1 (worker reclean) also rewrites rows whose source version is unchanged but whose cleaned values differ,
+-- because a cleaner or seed changed since they were loaded. That writes no history row (the source didn't change);
+-- @label_flags are the dq_flags bits set after the fact by usp_classify_for_metrics, kept as they are.
 CREATE OR ALTER PROCEDURE dbo.usp_apply_batch
-    @run_id bigint
+    @run_id bigint,
+    @reclean bit = 0,
+    @label_flags int = 0
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
     DECLARE @now datetime2(3) = SYSUTCDATETIME();
-    DECLARE @staged int, @inserted int, @updated int, @unchanged int, @history int;
+    DECLARE @staged int, @inserted int, @updated int, @unchanged int, @history int, @recleaned int = 0;
 
     -- 1. One row per request (the newest version wins), with the map tables resolved. Unmatched category and
     --    source values become 'Unmapped' with UnmappedCategory (128) / UnmappedSource (256). A neighborhood alias
@@ -78,6 +83,68 @@ BEGIN
     WHERE t.row_hash = b.row_hash OR b.updated_utc < t.updated_utc;
     SET @unchanged = @@ROWCOUNT;
 
+    -- 3b. Reclean: the same source version cleaned differently now. Only the cleaned columns move (not row_hash,
+    --     object_id or last_changed_utc), and these rows count as recleaned instead of unchanged.
+    IF @reclean = 1
+    BEGIN
+        UPDATE t
+        SET t.sf_ticket_id = b.sf_ticket_id,
+            t.category_level1 = b.category_level1,
+            t.category_level2 = b.category_level2,
+            t.category_name = b.category_name,
+            t.category_group = b.category_group,
+            t.source_channel_raw = b.source_channel_raw,
+            t.source_channel = b.source_channel,
+            t.district_number = b.district_number,
+            t.is_city = b.is_city,
+            t.neighborhood = b.neighborhood,
+            t.neighborhood_slug = b.neighborhood_slug,
+            t.address = b.address,
+            t.cross_street = b.cross_street,
+            t.zip = b.zip,
+            t.latitude = b.latitude,
+            t.longitude = b.longitude,
+            t.public_status = b.public_status,
+            t.status_group = b.status_group,
+            t.created_utc = b.created_utc,
+            t.closed_utc = b.closed_utc,
+            t.created_date_local = b.created_date_local,
+            t.closed_date_local = b.closed_date_local,
+            t.backlog_close_date_local = b.backlog_close_date_local,
+            t.days_to_close = b.days_to_close,
+            t.dq_flags = b.dq_flags | (t.dq_flags & @label_flags)
+        FROM dbo.service_request AS t
+        JOIN #batch AS b ON b.reference_number = t.reference_number
+        WHERE t.row_hash = b.row_hash
+          AND (t.sf_ticket_id IS DISTINCT FROM b.sf_ticket_id
+            OR t.category_level1 IS DISTINCT FROM b.category_level1
+            OR t.category_level2 IS DISTINCT FROM b.category_level2
+            OR t.category_name IS DISTINCT FROM b.category_name
+            OR t.category_group IS DISTINCT FROM b.category_group
+            OR t.source_channel_raw IS DISTINCT FROM b.source_channel_raw
+            OR t.source_channel IS DISTINCT FROM b.source_channel
+            OR t.district_number IS DISTINCT FROM b.district_number
+            OR t.is_city IS DISTINCT FROM b.is_city
+            OR t.neighborhood IS DISTINCT FROM b.neighborhood
+            OR t.neighborhood_slug IS DISTINCT FROM b.neighborhood_slug
+            OR t.address IS DISTINCT FROM b.address
+            OR t.cross_street IS DISTINCT FROM b.cross_street
+            OR t.zip IS DISTINCT FROM b.zip
+            OR t.latitude IS DISTINCT FROM b.latitude
+            OR t.longitude IS DISTINCT FROM b.longitude
+            OR t.public_status IS DISTINCT FROM b.public_status
+            OR t.status_group IS DISTINCT FROM b.status_group
+            OR t.created_utc IS DISTINCT FROM b.created_utc
+            OR t.closed_utc IS DISTINCT FROM b.closed_utc
+            OR t.created_date_local IS DISTINCT FROM b.created_date_local
+            OR t.closed_date_local IS DISTINCT FROM b.closed_date_local
+            OR t.backlog_close_date_local IS DISTINCT FROM b.backlog_close_date_local
+            OR t.days_to_close IS DISTINCT FROM b.days_to_close
+            OR t.dq_flags & ~@label_flags <> b.dq_flags);
+        SET @recleaned = @@ROWCOUNT;
+        SET @unchanged -= @recleaned;
+    END
+
     -- 4. Changed: a new hash at least as new as the stored version.
     UPDATE t
     SET t.object_id = b.object_id,
@@ -140,5 +207,6 @@ BEGIN
         @updated AS Updated,
         @unchanged AS Unchanged,
         @history AS History,
-        @staged - (SELECT COUNT(*) FROM #batch) AS Duplicates;
+        @staged - (SELECT COUNT(*) FROM #batch) AS Duplicates,
+        @recleaned AS Recleaned;
 END

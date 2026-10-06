@@ -12,6 +12,7 @@ public sealed record PageResult(BatchCounts Counts, int Rejected, DateTime? MaxU
 /// <summary>
 /// The per-page step every job shares: <c>raw.page</c> first, then validate and clean each feature, then one
 /// transaction through <see cref="PageWriter.ApplyAsync"/> (stage, <c>usp_apply_batch</c>, rejects, checkpoint, run counters).
+/// Pages of a <see cref="Pipeline.Reclean"/> run are applied in reclean mode.
 /// </summary>
 public sealed partial class PageProcessor(PageWriter writer, TimeProvider time, ILogger<PageProcessor> logger)
 {
@@ -46,7 +47,7 @@ public sealed partial class PageProcessor(PageWriter writer, TimeProvider time, 
             new RawPage(runId, pipeline, page.Where, page.CursorObjectId, page.Features.Count, (int)page.Elapsed.TotalMilliseconds, page.Payload),
             cancellationToken).ConfigureAwait(false);
 
-        var counts = await writer.ApplyAsync(runId, rows, rejects, checkpoint, page.Features.Count, cancellationToken).ConfigureAwait(false);
+        var counts = await writer.ApplyAsync(runId, rows, rejects, checkpoint, page.Features.Count, pipeline == Pipeline.Reclean, cancellationToken).ConfigureAwait(false);
         LogPage(logger, page.LastObjectId, page.Features.Count, counts.Inserted, counts.Updated, counts.Unchanged, rejects.Count, (long)page.Elapsed.TotalMilliseconds);
         return new PageResult(counts, rejects.Count, maxUpdated);
     }
