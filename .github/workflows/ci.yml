@@ -16,7 +16,7 @@ concurrency:
 jobs:
   dotnet:
     name: .NET build and test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     # The integration tests create (and drop) a throwaway database per test class on this server.
     # Local runs use SQL Express with Windows auth instead; Docker is only needed here.
@@ -68,7 +68,7 @@ jobs:
 
   web:
     name: Web lint, test and build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     defaults:
       run:
@@ -97,7 +97,7 @@ jobs:
 
   e2e:
     name: End-to-end (Playwright)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     # The real API over a seeded throwaway database, serving the built Angular app, driven in headless Chromium.
     services:
