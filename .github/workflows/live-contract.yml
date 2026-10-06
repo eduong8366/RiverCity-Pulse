@@ -1,0 +1,34 @@
+name: Live contract
+
+# Nightly check of the live ArcGIS feed: the field contract still matches and the row count is within ±5% of the
+# "Row count" baseline in docs/source-profile.md. Read-only against the source; no database, nothing written.
+# Not on push or PR, so a change at the City never blocks a merge. A failed run sends GitHub's usual failure email.
+on:
+  schedule:
+    - cron: '23 11 * * *' # 11:23 UTC: 04:23 PDT / 03:23 PST, off the top of the hour when scheduled runs queue
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Schema contract and row count
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    env:
+      DOTNET_NOLOGO: true
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: '**/*.csproj'
+
+      # Exit 3: schema drift or a count change past ±5% (the log says which, and when growth means the baseline needs
+      # a refresh). Exit 1: the feed couldn't be reached or the baseline couldn't be read.
+      - name: Check the live feed
+        run: dotnet run --project src/Sac311.Worker -- verify-source --check
