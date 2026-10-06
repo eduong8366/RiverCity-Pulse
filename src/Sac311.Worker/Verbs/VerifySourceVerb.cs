@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using Sac311.Domain;
 using Sac311.Domain.Cleaners;
 using Sac311.Ingestion.ArcGis;
 
@@ -14,6 +15,11 @@ namespace Sac311.Worker.Verbs;
 /// It also saves the neighborhood boundaries to data/geo/ and measures how well the 311 names match them. Read-only
 /// against the source. The section between the <c>manual</c> markers in an existing profile is kept.
 /// Exit code 3 means the layer no longer matches <see cref="SchemaContract"/> (the report is still written).
+/// <para>
+/// With <c>--check</c> it is the nightly source check instead (<c>live-contract.yml</c>): it fetches only the layer
+/// metadata and one count, writes nothing, and exits 0 when the contract matches and the count is within
+/// <see cref="SourceCountCheck"/>'s tolerance of the profile's "Row count", 3 on drift or a count change past it, 1 on error.
+/// </para>
 /// </summary>
 internal sealed partial class VerifySourceVerb(ArcGisClient client, IOptions<ArcGisOptions> options, ILogger<VerifySourceVerb> logger) : IVerb
 {
@@ -33,16 +39,20 @@ internal sealed partial class VerifySourceVerb(ArcGisClient client, IOptions<Arc
 
     public string Name => "verify-source";
 
-    public string Usage => "verify-source [--out <file>] [--geojson-out <file>]   profile the live feed into docs/source-profile.md";
+    public string Usage => "verify-source [--out <file>] [--geojson-out <file>] [--check]   profile the live feed into docs/source-profile.md; --check only compares the schema and row count with it";
 
     public async Task<int> RunAsync(string[] args, CancellationToken cancellationToken)
     {
         string? outFile = null;
         string? geoJsonOut = null;
+        var check = false;
         for (var i = 0; i < args.Length; i++)
         {
             switch (args[i])
             {
+                case "--check":
+                    check = true;
+                    break;
                 case "--out" when i + 1 < args.Length:
                     outFile = args[++i];
                     break;
@@ -57,6 +67,18 @@ internal sealed partial class VerifySourceVerb(ArcGisClient client, IOptions<Arc
 
         var root = RepoPaths.FindRoot();
         outFile ??= root is null ? null : Path.Combine(root, "docs", "source-profile.md");
+        if (check)
+        {
+            // The profile at --out is the baseline here: read, never written.
+            if (outFile is null)
+            {
+                LogNoRepo(logger);
+                return 2;
+            }
+
+            return await CheckAsync(outFile, cancellationToken).ConfigureAwait(false);
+        }
+
         geoJsonOut ??= root is null ? null : Path.Combine(root, "data", "geo", "sacramento-neighborhoods.geojson");
         if (outFile is null || geoJsonOut is null)
         {
@@ -81,6 +103,73 @@ internal sealed partial class VerifySourceVerb(ArcGisClient client, IOptions<Arc
         }
 
         return 0;
+    }
+
+    /// <summary>The nightly check: schema contract and row count against the committed profile, nothing written.</summary>
+    private async Task<int> CheckAsync(string profilePath, CancellationToken ct)
+    {
+        string profile;
+        try
+        {
+            profile = await File.ReadAllTextAsync(profilePath, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            LogCheckError(logger, ex.Message);
+            return 1;
+        }
+
+        if (!SourceCountCheck.TryParseBaseline(profile, out var baseline))
+        {
+            LogNoBaseline(logger, profilePath);
+            return 1;
+        }
+
+        var serviceUrl = options.Value.BaseUrl.ToString().TrimEnd('/');
+        LogCheckStart(logger, serviceUrl, profilePath);
+        SchemaCheckResult contract;
+        long count;
+        try
+        {
+            using (var layer = await client.GetLayerAsync(ct).ConfigureAwait(false))
+            {
+                contract = SchemaContract.Check(layer.RootElement);
+            }
+
+            count = await client.CountAsync("1=1", ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            LogCheckError(logger, ex.Message);
+            return 1;
+        }
+
+        var result = SourceCountCheck.Compare(baseline, count);
+        LogCheckCount(logger, result.Count, result.Baseline, result.Change);
+        var exitCode = 0;
+        if (contract.IsDrift)
+        {
+            LogDrift(logger, contract);
+            exitCode = 3;
+        }
+        else
+        {
+            LogContract(logger, contract);
+        }
+
+        switch (result.Outcome)
+        {
+            case SourceCountOutcome.Grew:
+                LogCountGrew(logger, result.Change, SourceCountCheck.Tolerance);
+                exitCode = 3;
+                break;
+            case SourceCountOutcome.Dropped:
+                LogCountDropped(logger, result.Change, SourceCountCheck.Tolerance);
+                exitCode = 3;
+                break;
+        }
+
+        return exitCode;
     }
 
     private async Task<SchemaCheckResult> ProfileAsync(Markdown md, string serviceUrl, DateTime started, string outFile, string geoJsonOut, CancellationToken ct)
@@ -575,4 +664,27 @@ internal sealed partial class VerifySourceVerb(ArcGisClient client, IOptions<Arc
 
     [LoggerMessage(Level = LogLevel.Critical, Message = "Schema drift: {Drift}")]
     private static partial void LogDrift(ILogger logger, SchemaCheckResult drift);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Checking {Url} against the baseline in {Profile}")]
+    private static partial void LogCheckStart(ILogger logger, string url, string profile);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "No \"Row count\" baseline in {Path}. Rerun `worker verify-source` to write the profile.")]
+    private static partial void LogNoBaseline(ILogger logger, string path);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Source check failed: {Error}")]
+    private static partial void LogCheckError(ILogger logger, string error);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Row count {Count:N0}, baseline {Baseline:N0}, change {Change:+0.0%;-0.0%;0.0%}.")]
+    private static partial void LogCheckCount(ILogger logger, long count, long baseline, double change);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Schema contract {Contract}.")]
+    private static partial void LogContract(ILogger logger, SchemaCheckResult contract);
+
+    [LoggerMessage(Level = LogLevel.Critical,
+        Message = "Row count grew {Change:+0.0%} since the baseline, past ±{Tolerance:0%}. Usually normal growth (~1,500 rows a day): rerun `dotnet run --project src/Sac311.Worker -- verify-source` and commit docs/source-profile.md to refresh the baseline.")]
+    private static partial void LogCountGrew(ILogger logger, double change, double tolerance);
+
+    [LoggerMessage(Level = LogLevel.Critical,
+        Message = "Row count dropped {Change:0.0%} since the baseline, past ±{Tolerance:0%}. The feed lost rows or was republished; check it before the next reconcile (its 95% guard stops a truncated feed).")]
+    private static partial void LogCountDropped(ILogger logger, double change, double tolerance);
 }
