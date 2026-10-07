@@ -4,7 +4,7 @@
 
 A data pipeline and dashboard for the City of Sacramento's public 311 service requests. A .NET worker ingests the city's ArcGIS feed into SQL Server (raw, staging, cleaned and history layers), an ASP.NET Core API serves aggregates, and an Angular dashboard shows how long requests take to close by neighborhood and category.
 
-![The dashboard: a neighborhood map shaded by median days to close, a citywide card (5.9 days median, 328 days p90, 122,288 closed in the last 90 days) and the weekly backlog chart from 2024 with clear-out markers](docs/screenshots/dashboard.png)
+![The dashboard: filters, a neighborhood map shaded by median days to close, a citywide card (5.8 days median, 329 days p90, 121,735 closed in the last 90 days, 20.2% slower), the "What's getting slower" panel and the weekly backlog chart from 2024 with clear-out markers](docs/screenshots/dashboard.png)
 
 What it is built to show:
 
@@ -116,32 +116,33 @@ Start it with `dotnet run --project src/Sac311.Api`. It listens on `http://local
 ```console
 $ curl -s "http://localhost:5264/api/neighborhoods/downtown/stats?window=90"
 {"neighborhood":{"slug":"downtown","name":"Downtown"},"category":null,"windowDays":90,
- "stats":{"current":{"from":"2026-07-07","to":"2026-10-04","opened":2623,"closed":3264,"excluded":483,"bulkClosed":1036,"medianDays":14.04,"p90Days":666.71},
-          "prior":{"from":"2026-04-08","to":"2026-07-06","opened":2859,"closed":2514,"excluded":386,"bulkClosed":0,"medianDays":2.06,"p90Days":60.58},
-          "trend":{"direction":"slower","medianChangePct":581.6},"openBacklog":1354,"medianOpenAgeDays":424.70},
- "asOf":"2026-10-05T01:56:19.287Z"}
+ "stats":{"current":{"from":"2026-07-09","to":"2026-10-06","opened":2570,"closed":3301,"excluded":484,"bulkClosed":1036,"medianDays":12.97,"p90Days":664.96},
+          "prior":{"from":"2026-04-10","to":"2026-07-08","opened":2877,"closed":2474,"excluded":385,"bulkClosed":0,"medianDays":2.06,"p90Days":62.05},
+          "trend":{"direction":"slower","medianChangePct":529.6},"openBacklog":1334,"medianOpenAgeDays":427.42},
+ "asOf":"2026-10-07T01:19:10.57Z"}
 
 $ curl -s "http://localhost:5264/api/categories/summary?window=30&district=4"
 $ curl -s "http://localhost:5264/api/map/neighborhoods?window=90&category=Homeless%20Camp"
 
 $ curl -s "http://localhost:5264/api/backlog?category=Streets&from=2026-09-07"
-{"from":"2026-09-07","to":"2026-10-02","grain":"week","category":"Streets","district":null,
- "points":[{"date":"2026-09-07","opened":359,"closed":312,"open":4793},{"date":"2026-09-14","opened":401,"closed":226,"open":4968},
-           {"date":"2026-09-21","opened":427,"closed":298,"open":5097},{"date":"2026-09-28","opened":303,"closed":443,"open":4957}],
- "asOf":"2026-10-03T05:43:09.08Z"}
+{"from":"2026-09-07","to":"2026-10-06","grain":"week","category":"Streets","district":null,
+ "points":[{"date":"2026-09-07","opened":359,"closed":312,"open":4797},{"date":"2026-09-14","opened":401,"closed":226,"open":4972},
+           {"date":"2026-09-21","opened":427,"closed":298,"open":5101},{"date":"2026-09-28","opened":373,"closed":1101,"open":4373},
+           {"date":"2026-10-05","opened":121,"closed":133,"open":4361}],
+ "asOf":"2026-10-07T01:19:10.57Z"}
 
 $ curl -s "http://localhost:5264/api/meta/freshness"
 $ curl -s "http://localhost:5264/api/meta/exclusions?window=90"
 
 $ curl -s "http://localhost:5264/api/meta/clear-outs?category=Parking&from=2026-08-01"
-{"from":"2026-08-01","to":"2026-10-04","category":"Parking","closed":13358,
+{"from":"2026-08-01","to":"2026-10-06","category":"Parking","closed":13358,
  "clearOuts":[{"date":"2026-09-30","category":"Parking","closed":223,"averageDaysToClose":213.10,"minutesSpanned":136,"isSweep":false,"sweepCategories":[],
                 "note":"On 2026-09-30, Parking closed 223 requests averaging 213 days old over 136 minutes."}, ...],
  "rule":{"minCount":100,"sweepMinCount":50,"detectAgeDays":180,"memberAgeDays":90,"notes":"/api/meta/clear-outs"}, ...}
 $ curl -s "http://localhost:5264/api/health/ready"
 ```
 
-To check a median by hand, run `PERCENTILE_CONT` over the same requests. This returns the downtown figures above (3,264 requests, 14.04 and 666.71 days; 1,036 of them were in clear-outs). [`docs/metrics.md`](docs/metrics.md#check-it-yourself) recomputes the citywide figure from the seeds alone, without the stored flags.
+To check a median by hand, run `PERCENTILE_CONT` over the same requests. This returns the downtown figures above (3,301 requests, 12.97 and 664.96 days; 1,036 of them were in clear-outs). [`docs/metrics.md`](docs/metrics.md#check-it-yourself) recomputes the citywide figure from the seeds alone, without the stored flags.
 
 ```sql
 DECLARE @asOf date = (SELECT TOP (1) as_of_date FROM agg.refresh ORDER BY refresh_id DESC);
@@ -165,7 +166,7 @@ $ npm start        # ng serve on http://localhost:4200, with /api proxied to htt
 
 The page has:
 
-- a freshness badge: Fresh when an ingestion run succeeded in the last 45 minutes, plus the last success in Sacramento time and the request count;
+- a freshness badge: Fresh when an ingestion run succeeded in the last 45 minutes, plus the last success in Sacramento time, the request count, and how many data-quality checks warned or failed on the last run, if any;
 - a filter bar (window 30/90/365 days, category, council district, neighborhood, backlog chart range), kept in the URL so a view can be shared;
 - a neighborhood map shaded by median days to close in five quantile bins (neighborhoods with under 30 closed requests are grey), with a card showing the hovered neighborhood's figures, or the whole selection's;
 - a neighborhood drawer, opened by clicking a neighborhood (or Enter on it, or picking it in the filter bar): its figures against the prior period, what's open now and how old, and the same by category;
@@ -178,9 +179,13 @@ Clear-outs are also marked on the chart in their week, and a card whose figures 
 
 CI runs `npm run lint`, `npm test -- --watch=false` (Vitest) and `npm run build`, and an `e2e` job runs the Playwright tests against the built app. The map has no basemap; [`docs/tradeoffs.md`](docs/tradeoffs.md) explains why.
 
-Filtered to Streets in council district 4 over 365 days (`/?window=365&category=Streets&district=4`): the map greys out the rest of the city, the card notes the one Streets clear-out in the period, and the chart shows that district's backlog.
+Filtered to Streets in council district 4 over 365 days (`/?window=365&category=Streets&district=4`): the map greys out the rest of the city, the card notes the one Streets clear-out in the period, the slower panel ranks only that district's neighborhoods for Streets, and the chart shows that district's backlog.
 
-![The dashboard filtered to Streets in district 4 over 365 days: median 4.9 days, p90 128 days, 4,755 closed, 24.6% slower than the prior year](docs/screenshots/dashboard-district4-streets.png)
+![The dashboard filtered to Streets in district 4 over 365 days: median 4.9 days, p90 126 days, 4,767 closed, 24.6% slower than the prior year; 13 of 22 neighborhoods slower](docs/screenshots/dashboard-district4-streets.png)
+
+With a neighborhood picked (`/?neighborhood=downtown`), the drawer compares its figures with the prior period and breaks them down by category; the map keeps it outlined.
+
+![The Downtown drawer over 90 days: median 13.0 days against 2.1 days before, 3,301 closed, 1,334 open with a median age of 427 days, and a per-category table led by Parking](docs/screenshots/dashboard-drawer-downtown.png)
 
 ## Operations
 
